@@ -18,6 +18,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .bad{color:#dc2626;font-weight:600}.ok{color:#15803d}#msg{font-size:.85rem;color:#475569}
 #cola{position:sticky;top:0;z-index:10;background:#fef9c3;border:1px solid #facc15;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sent{font-size:.75rem;color:#15803d;font-weight:600}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.kpi{background:#f8fafc;border-radius:8px;padding:8px}.kpi small{display:block;color:#475569}.kpi b{font-size:1.05rem}
+.card.revisar{background:#ffedd5;border:3px solid #ea580c;box-shadow:0 0 0 3px #fdba74}.badge{background:#ea580c;color:#fff;font-weight:700;border-radius:8px;padding:4px 8px;font-size:.85rem}.otl{background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:6px;font-size:.85rem}.sp{color:#dc2626;font-weight:800}#revisar{background:#ffedd5;border:3px solid #ea580c}.qrev{background:#ea580c;color:#fff;padding:2px 6px;border-radius:6px;font-weight:700}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
 <header><h1>📋 Cortes semanales</h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
@@ -26,7 +27,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 <label>Desde<input type="date" id="desde"></label><label>Hasta<input type="date" id="hasta"></label>
 <button id="cargar">Cargar datos</button><button class="sec" id="todo">Enviar todo a Cortes</button><button class="wa" id="todos">Enviar a todos</button>
 </div><div id="msg"></div></div>
-<div id="cola" hidden></div><div id="faltan" class="panel" hidden></div><div id="resumen" class="panel" hidden></div>
+<div id="cola" hidden></div><div id="faltan" class="panel" hidden></div><div id="revisar" class="panel" hidden></div><div id="resumen" class="panel" hidden></div>
 <div id="cortes" class="grid"></div>
 <div class="panel"><h2 style="margin-top:0;font-size:1.1rem">Diferencias</h2>
 <div style="overflow-x:auto"><table id="dif"></table></div>
@@ -58,27 +59,31 @@ function mapCols(H){const h=H.map(norm),M={tr:[]};const f=x=>h.findIndex(v=>v==x
   // siguientes columnas hasta el siguiente SUBTOTAL: PRECIO? y SUBTOTAL
   let p=-1,s=-1;for(let j=q+1;j<Math.min(q+3,h.length);j++){if(h[j].startsWith('PRECIO'))p=j;if(h[j].startsWith('SUBTOTAL')){s=j;break}}
   M.tr.push({lab,sp,q,p,s})}return M}
+const RESETEO=150;const sinAc=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const isReset=v=>/reset/.test(sinAc(v));
+function resetQty(v){const t=sinAc(v).trim();if(/^\d+(\.\d+)?$/.test(t))return parseFloat(t)||1;const m=t.match(/(\d+)\s*(x\s*)?reset/)||t.match(/reset\w*\s*(?:x\s*)?(\d+)/);return m?parseInt(m[1]):1}
 function parseRows(text){const R=parseCSV(text);const M=mapCols(R[0]);const out=[];
  for(const r of R.slice(1)){if(!r.some(c=>String(c).trim()))continue;const cl=(r[M.cliente]||'').trim();
   if(norm(r[M.fecha])=='CUENTA')continue;const fecha=parseFecha(r[M.fecha]);if(!fecha)continue;
   const g=norm(r[M.gestor]);const items=[];
   for(const t of M.tr){const qty=num(r[t.q]);if(qty<=0)continue;const sub=t.s>=0?num(r[t.s]):0;
    const unit=t.p>=0?num(r[t.p]):(qty?sub/qty:0);items.push({tramite:t.lab,cantidad:qty,unit,subtotal:sub||unit*qty,santi:t.sp})}
-  if(M.otros>=0&&String(r[M.otros]||'').trim()){const c=num(r[M.costo]);items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null})}
+  for(let j=0;j<r.length;j++){const v=String(r[j]||'').trim();if(!isReset(v))continue;const q=resetQty(v);items.push({tramite:'Reseteo',cantidad:q,unit:RESETEO,subtotal:q*RESETEO,santi:RESETEO,reseteo:true})}
+  if(M.otros>=0&&String(r[M.otros]||'').trim()&&!isReset(r[M.otros])){const c=num(r[M.costo]);items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null,otros:true,texto:r[M.otros].trim(),sinPrecio:!(c>0)})}
   out.push({fecha,cliente:cl,gestor:g,items,abono:M.abonos>=0?num(r[M.abonos]):0,subdia:M.subdia>=0?num(r[M.subdia]):0})}
  return out}
 function buildCortes(rows,desde,hasta){const sel=rows.filter(r=>r.fecha>=desde&&r.fecha<=hasta);const G={};
  for(const r of sel){if(!r.items.length&&!r.abono)continue;const key=r.gestor=='CANEK'?'CANEK|'+r.cliente.trim().toUpperCase():r.gestor||'SIN GESTOR';
   (G[key]=G[key]||{id:key,gestor:r.gestor,cliente:r.gestor=='CANEK'?r.cliente.trim():null,lineas:[],abonos:[]});
-  for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,tramite:it.tramite,cantidad:it.cantidad,unit:u,subtotal:r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal})}
+  for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,tramite:it.tramite,otros:!!it.otros,sinPrecio:!!it.sinPrecio,texto:it.texto||'',cantidad:it.cantidad,unit:u,subtotal:r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal})}
   if(r.abono)G[key].abonos.push({cliente:r.cliente.trim(),fecha:r.fecha,monto:r.abono})}
- return Object.values(G).map(c=>{c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
+ return Object.values(G).map(c=>{c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0;c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
   .sort((a,b)=>a.id.localeCompare(b.id))}
 const $m=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fd=s=>{const[y,m,d]=s.split('-');return d+'/'+m+'/'+y};
 function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));L.push('');
  let last='';for(const l of c.lineas){const h=fd(l.fecha)+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
-  L.push('• '+l.tramite+': '+l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal))}
+  L.push('• '+l.tramite+': '+(l.otros&&l.sinPrecio?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal)))}
  L.push('');L.push('Subtotal: '+$m(c.subtotal));
  if(c.abonos.length){for(const a of c.abonos)L.push('Abono '+fd(a.fecha)+(c.cliente?'':' ('+a.cliente+')')+': -'+$m(a.monto));}
  L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');return L.join('\n')}
@@ -95,10 +100,10 @@ document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
- for(const c of CORTES){const el=document.createElement('div');el.className='card';const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
+ for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
   el.innerHTML=`<h3><span>${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div>
-  <pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
+  ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
@@ -111,7 +116,10 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   box.appendChild(el)}
  const t=document.getElementById('dif');t.innerHTML='<tr><th>Corte</th><th>Total</th><th>Pagado</th><th>Diferencia</th></tr>';
  for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0),d=c.total-pag;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.total)}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}
- renderResumen()}
+ renderResumen();renderRevisar()}
+const esc=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
+function renderRevisar(){const R=document.getElementById('revisar');const F=CORTES.filter(c=>c.revisar);if(!F.length){R.hidden=true;return}R.hidden=false;
+ R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">⚠ Por revisar: cortes con otros trámites (${F.length})</h2>`+F.map(c=>`<div style="margin-bottom:6px"><b>${esc(nom(c))}</b>: `+(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)} — ${esc(l.texto)} — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('; ')+'</div>').join('')}
 document.getElementById('todo').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
  const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:ph[c.id]||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
  const txt='CORTES '+b.desde+' a '+b.hasta+'\n\n'+CORTES.map(c=>c.texto).join('\n\n-----\n\n')+'\n\n```json\n'+JSON.stringify(b)+'\n```';
@@ -135,7 +143,7 @@ function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text=
 function abrirCorte(c){const t=ls('telefonos',{})[c.id];abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
- const c=COLA.lista[COLA.i];b.hidden=false;b.innerHTML=`<span>Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
+ const c=COLA.lista[COLA.i];b.hidden=false;b.style.background=c.revisar?'#fed7aa':'';b.style.borderColor=c.revisar?'#ea580c':'';b.innerHTML=`<span>${c.revisar?'<span class="qrev">⚠ Revisar otros trámites</span> ':''}Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
  b.querySelector('#qab').onclick=()=>{abrirCorte(c);COLA.i++;COLA.esperando=true;b.hidden=true};
  b.querySelector('#qsa').onclick=()=>{COLA.i++;mostrarCola()};
  b.querySelector('#qte').onclick=()=>{COLA=null;mostrarCola();msg('Envío guiado terminado')}}
@@ -152,6 +160,6 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v5</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v6</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 </body></html>
