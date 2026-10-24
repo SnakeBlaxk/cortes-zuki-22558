@@ -11,7 +11,7 @@ button{padding:8px 12px;border:0;border-radius:8px;background:#0f766e;color:#fff
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
 .card{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px #0002;display:flex;flex-direction:column;gap:8px}
 .card h3{margin:0;font-size:1rem;display:flex;justify-content:space-between;align-items:center}
-pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:.8rem;max-height:280px;overflow:auto;margin:0}
+pre[hidden]{display:none}pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:.8rem;max-height:280px;overflow:auto;margin:0}
 .tag{font-size:.7rem;background:#ccfbf1;color:#115e59;padding:2px 6px;border-radius:6px}
 .pay{display:flex;flex-wrap:wrap;gap:6px}.pay input{flex:1;min-width:80px}
 table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;border-bottom:1px solid #e2e8f0;text-align:left}
@@ -99,14 +99,16 @@ document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.
  try{const rows=parseRows(await fetchCSV());CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
+const OPEN=new Set();
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
  for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
-  el.innerHTML=`<h3><span>${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
+  el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(c.id)?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div>
-  ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
+  ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<pre ${OPEN.has(c.id)?'':'hidden'}></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
+  el.querySelector('.tg').onclick=()=>{const x=el.querySelector('pre');x.hidden=!x.hidden;x.hidden?OPEN.delete(c.id):OPEN.add(c.id);el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
