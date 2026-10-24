@@ -105,7 +105,7 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
-  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank');ss(envKey(c),iso(new Date()));render()};
+  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()};
   el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');const p=ls(pagoKey(c),[]);p.push({monto:m,fecha:el.querySelector('.pd').value,nota:el.querySelector('.pn').value});ss(pagoKey(c),p);render()};
   const clr=el.querySelector('.clr');if(clr)clr.onclick=e=>{e.preventDefault();if(confirm('¿Borrar pagos de este corte?')){localStorage.removeItem(pagoKey(c));render()}};
   box.appendChild(el)}
@@ -131,7 +131,8 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
  h+=fila('<b>TOTAL</b>',tot,'font-weight:700')+'</table></div>';R.innerHTML=h}
 // ---- Cola "Enviar a todos" ----
 let COLA=null;const nom=c=>c.cliente||c.gestor;
-function abrirCorte(c){const t=ls('telefonos',{})[c.id];window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank');ss(envKey(c),iso(new Date()));render()}
+function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e;if(/Android/i.test(navigator.userAgent)){location.href='intent://send?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url='+encodeURIComponent(w)+';end'}else{window.open(w,'_blank')}}
+function abrirCorte(c){const t=ls('telefonos',{})[c.id];abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
  const c=COLA.lista[COLA.i];b.hidden=false;b.innerHTML=`<span>Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
