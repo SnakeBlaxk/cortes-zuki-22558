@@ -69,7 +69,7 @@ function parseRows(text){const R=parseCSV(text);const M=mapCols(R[0]);const out=
   for(const t of M.tr){const qty=num(r[t.q]);if(qty<=0)continue;const sub=t.s>=0?num(r[t.s]):0;
    const unit=t.p>=0?num(r[t.p]):(qty?sub/qty:0);items.push({tramite:t.lab,cantidad:qty,unit,subtotal:sub||unit*qty,santi:t.sp})}
   for(let j=0;j<r.length;j++){const v=String(r[j]||'').trim();if(!isReset(v))continue;const q=resetQty(v);items.push({tramite:'Reseteo',cantidad:q,unit:RESETEO,subtotal:q*RESETEO,santi:RESETEO,reseteo:true})}
-  if(M.otros>=0&&String(r[M.otros]||'').trim()&&!isReset(r[M.otros])){const c=num(r[M.costo]);items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null,otros:true,texto:r[M.otros].trim(),sinPrecio:!(c>0)})}
+  if(M.otros>=0&&String(r[M.otros]||'').trim()&&!isReset(r[M.otros])){const c=num(r[M.costo]);const _ot=r[M.otros].trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/estado\s*de\s*cuenta/.test(_ot)){const q=parseInt((_ot.match(/^(\d+)/)||[0,1])[1])||1;const pc=c>0?c/q:80;items.push({tramite:'Estado de cuenta'+(/infonavit/.test(_ot)?' Infonavit':''),cantidad:q,unit:pc,subtotal:pc*q,santi:null})}else items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null,otros:true,texto:r[M.otros].trim(),sinPrecio:!(c>0)})}
   out.push({fecha,cliente:cl,gestor:g,items,abono:M.abonos>=0?num(r[M.abonos]):0,subdia:M.subdia>=0?num(r[M.subdia]):0})}
  return out}
 function buildCortes(rows,desde,hasta){const sel=rows.filter(r=>r.fecha>=desde&&r.fecha<=hasta);const G={};
