@@ -161,7 +161,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fca').onclick=()=>{F.hidden=true};
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
-CORTES=ls('ultimos',[]);render();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v6</footer>
+CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v7</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 </body></html>
