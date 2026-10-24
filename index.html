@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cortes semanales</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
+header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
+main{max-width:1100px;margin:auto;padding:12px}.panel{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}label{font-size:.85rem;display:flex;flex-direction:column;gap:4px}
+input,button,textarea{font:inherit}input{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
+button{padding:8px 12px;border:0;border-radius:8px;background:#0f766e;color:#fff;cursor:pointer}button.sec{background:#e2e8f0;color:#1d2430}button.wa{background:#25d366}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.card{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px #0002;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:1rem;display:flex;justify-content:space-between;align-items:center}
+pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:.8rem;max-height:280px;overflow:auto;margin:0}
+.tag{font-size:.7rem;background:#ccfbf1;color:#115e59;padding:2px 6px;border-radius:6px}
+.pay{display:flex;flex-wrap:wrap;gap:6px}.pay input{flex:1;min-width:80px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;border-bottom:1px solid #e2e8f0;text-align:left}
+.bad{color:#dc2626;font-weight:600}.ok{color:#15803d}#msg{font-size:.85rem;color:#475569}
+.gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
+</style></head><body>
+<header><h1>📋 Cortes semanales</h1></header>
+<main>
+<div class="panel"><div class="row">
+<label>Desde<input type="date" id="desde"></label><label>Hasta<input type="date" id="hasta"></label>
+<button id="cargar">Cargar datos</button><button class="sec" id="todo">Enviar todo a Cortes</button>
+</div><div id="msg"></div></div>
+<div id="cortes" class="grid"></div>
+<div class="panel"><h2 style="margin-top:0;font-size:1.1rem">Diferencias</h2>
+<div style="overflow-x:auto"><table id="dif"></table></div>
+<p><button class="sec" id="csv">Exportar pagos (CSV)</button></p></div>
+</main>
+<script>
+/*CORE-START*/
+const SHEET='1ksLCPzOJoUcp7lKqjV_BMIjvB0fPtbyK7kT6C8jPCbM';
+const URLS=['https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid=0',
+ 'https://docs.google.com/spreadsheets/d/'+SHEET+'/gviz/tq?tqx=out:csv&gid=0'];
+const MESES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+function parseCSV(t){const R=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
+ if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}
+ else if(c=='"')q=true;else if(c==','){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);R.push(r);r=[];f=''}else f+=c}
+ if(f||r.length){r.push(f);R.push(r)}return R}
+function num(v){if(v==null)return 0;v=String(v).replace(/[$,\s]/g,'');if(v==''||v=='-')return 0;const n=parseFloat(v);return isNaN(n)?0:n}
+function parseFecha(s){s=String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const m=s.match(/(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/);if(m&&MESES[m[2]])return m[3]+'-'+String(MESES[m[2]]).padStart(2,'0')+'-'+m[1].padStart(2,'0');
+ const d=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(d)return d[3]+'-'+d[2].padStart(2,'0')+'-'+d[1].padStart(2,'0');return null}
+const norm=h=>String(h||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+// tramite: header de cantidad, etiqueta, clave santi
+const TRAM=[['ACTAS','Actas',10],['ACTAS POR DATOS','Acta por datos',70],['SEMANAS VIGENCIAS','Semanas cotizadas / vigencias',10],
+ ['CFE/NSS','CFE/NSS/No IMSS/CURP',5],['RFC EXPRESS','RFC económico/Express',30],['RFC DOM','RFC con domicilio fiscal',40],
+ ['RFC CON ID CIF','RFC con ID/CIF',50],['RFC NORMAL','RFC normal',70],['RFC ALTERNO','RFC alterno',145],['NO PENAL','Antecedentes penales',70],
+ ['FECHA RETIRO','Fecha de retiro',50],['CITAS SAT','Citas SAT',230]];
+function mapCols(H){const h=H.map(norm),M={tr:[]};const f=x=>h.findIndex(v=>v==x);
+ M.fecha=f('FECHA');M.cliente=f('CLIENTE');M.gestor=f('GESTOR');M.abonos=f('ABONOS');M.otros=f('OTROS TRAMITES');M.costo=f('COSTO');M.total=f('TOTAL A PAGAR');M.subdia=f('SUBTOTAL POR DIA');
+ for(const[k,lab,sp]of TRAM){const q=k=='CFE/NSS'?h.findIndex(v=>v.startsWith('CFE/NSS')):f(k);if(q<0)continue;
+  // siguientes columnas hasta el siguiente SUBTOTAL: PRECIO? y SUBTOTAL
+  let p=-1,s=-1;for(let j=q+1;j<Math.min(q+3,h.length);j++){if(h[j].startsWith('PRECIO'))p=j;if(h[j].startsWith('SUBTOTAL')){s=j;break}}
+  M.tr.push({lab,sp,q,p,s})}return M}
+function parseRows(text){const R=parseCSV(text);const M=mapCols(R[0]);const out=[];
+ for(const r of R.slice(1)){if(!r.some(c=>String(c).trim()))continue;const cl=(r[M.cliente]||'').trim();
+  if(norm(r[M.fecha])=='CUENTA')continue;const fecha=parseFecha(r[M.fecha]);if(!fecha)continue;
+  const g=norm(r[M.gestor]);const items=[];
+  for(const t of M.tr){const qty=num(r[t.q]);if(qty<=0)continue;const sub=t.s>=0?num(r[t.s]):0;
+   const unit=t.p>=0?num(r[t.p]):(qty?sub/qty:0);items.push({tramite:t.lab,cantidad:qty,unit,subtotal:sub||unit*qty,santi:t.sp})}
+  if(M.otros>=0&&String(r[M.otros]||'').trim()){const c=num(r[M.costo]);items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null})}
+  out.push({fecha,cliente:cl,gestor:g,items,abono:M.abonos>=0?num(r[M.abonos]):0,subdia:M.subdia>=0?num(r[M.subdia]):0})}
+ return out}
+function buildCortes(rows,desde,hasta){const sel=rows.filter(r=>r.fecha>=desde&&r.fecha<=hasta);const G={};
+ for(const r of sel){if(!r.items.length&&!r.abono)continue;const key=r.gestor=='CANEK'?'CANEK|'+r.cliente.trim().toUpperCase():r.gestor||'SIN GESTOR';
+  (G[key]=G[key]||{id:key,gestor:r.gestor,cliente:r.gestor=='CANEK'?r.cliente.trim():null,lineas:[],abonos:[]});
+  for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,tramite:it.tramite,cantidad:it.cantidad,unit:u,subtotal:r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal})}
+  if(r.abono)G[key].abonos.push({cliente:r.cliente.trim(),fecha:r.fecha,monto:r.abono})}
+ return Object.values(G).map(c=>{c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
+  .sort((a,b)=>a.id.localeCompare(b.id))}
+const $m=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fd=s=>{const[y,m,d]=s.split('-');return d+'/'+m+'/'+y};
+function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));L.push('');
+ let last='';for(const l of c.lineas){const h=fd(l.fecha)+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
+  L.push('• '+l.tramite+': '+l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal))}
+ L.push('');L.push('Subtotal: '+$m(c.subtotal));
+ if(c.abonos.length){for(const a of c.abonos)L.push('Abono '+fd(a.fecha)+(c.cliente?'':' ('+a.cliente+')')+': -'+$m(a.monto));}
+ L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');return L.join('\n')}
+if(typeof module!='undefined')module.exports={parseRows,buildCortes};
+/*CORE-END*/
+if(typeof document!='undefined'){
+const ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+let CORTES=[];const msg=t=>document.getElementById('msg').textContent=t;
+const today=new Date(),iso=d=>d.toISOString().slice(0,10);
+document.getElementById('hasta').value=ls('hasta',iso(today));document.getElementById('desde').value=ls('desde',iso(new Date(today-6*864e5)));
+async function fetchCSV(){let err;for(const u of URLS){try{const r=await fetch(u+'&_='+Date.now());if(r.ok){const t=await r.text();if(/FECHA/i.test(t.slice(0,300)))return t}}catch(e){err=e}}throw err||new Error('Sin respuesta')}
+document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.value;if(!d||!h)return msg('Elige fechas');ss('desde',d);ss('hasta',h);msg('Cargando…');
+ try{const rows=parseRows(await fetchCSV());CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){msg('Error al cargar: '+e.message)}};
+const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
+function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
+ for(const c of CORTES){const el=document.createElement('div');el.className='card';const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
+  el.innerHTML=`<h3><span>${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
+  <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div>
+  <pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>
+  <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
+  <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>`;
+  el.querySelector('pre').textContent=c.texto;
+  el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
+  el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
+  el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
+  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank')};
+  el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');const p=ls(pagoKey(c),[]);p.push({monto:m,fecha:el.querySelector('.pd').value,nota:el.querySelector('.pn').value});ss(pagoKey(c),p);render()};
+  const clr=el.querySelector('.clr');if(clr)clr.onclick=e=>{e.preventDefault();if(confirm('¿Borrar pagos de este corte?')){localStorage.removeItem(pagoKey(c));render()}};
+  box.appendChild(el)}
+ const t=document.getElementById('dif');t.innerHTML='<tr><th>Corte</th><th>Total</th><th>Pagado</th><th>Diferencia</th></tr>';
+ for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0),d=c.total-pag;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.total)}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}}
+document.getElementById('todo').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
+ const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:ph[c.id]||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
+ const txt='CORTES '+b.desde+' a '+b.hasta+'\n\n'+CORTES.map(c=>c.texto).join('\n\n-----\n\n')+'\n\n```json\n'+JSON.stringify(b)+'\n```';
+ navigator.clipboard.writeText(txt).catch(()=>{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='cortes_'+b.desde+'_'+b.hasta+'.txt';a.click();msg('Paquete copiado y descargado: pégalo en el chat con tu asistente')};
+document.getElementById('csv').onclick=()=>{const L=['corte,desde,hasta,total,monto,fecha_pago,nota'];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k.startsWith('pago:'))continue;const[,id,d,h]=k.split(':');const c=CORTES.find(x=>x.id==id&&x.desde==d);for(const p of ls(k,[]))L.push([id,d,h,c?c.total:'',p.monto,p.fecha,p.nota].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download='pagos.csv';a.click()};
+CORTES=ls('ultimos',[]);render();}
+</script></body></html>
