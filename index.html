@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cortes semanales</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
@@ -20,7 +20,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .sent{font-size:.75rem;color:#15803d;font-weight:600}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.kpi{background:#f8fafc;border-radius:8px;padding:8px}.kpi small{display:block;color:#475569}.kpi b{font-size:1.05rem}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales</h1></header>
+<header><h1>📋 Cortes semanales</h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">WhatsApp Business</option><option value="n">WhatsApp normal</option></select></label></header>
 <main>
 <div class="panel"><div class="row">
 <label>Desde<input type="date" id="desde"></label><label>Hasta<input type="date" id="hasta"></label>
@@ -131,7 +131,7 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
  h+=fila('<b>TOTAL</b>',tot,'font-weight:700')+'</table></div>';R.innerHTML=h}
 // ---- Cola "Enviar a todos" ----
 let COLA=null;const nom=c=>c.cliente||c.gestor;
-function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e;if(/Android/i.test(navigator.userAgent)){location.href='intent://send?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url='+encodeURIComponent(w)+';end'}else{window.open(w,'_blank')}}
+function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e;if(/Android/i.test(navigator.userAgent)){const pk=ls('waApp','b')==='n'?'com.whatsapp':'com.whatsapp.w4b';location.href='intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT='+e+';S.jid='+t+'@s.whatsapp.net;package='+pk+';end'}else{window.open(w,'_blank')}}
 function abrirCorte(c){const t=ls('telefonos',{})[c.id];abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
@@ -152,4 +152,6 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();}
-</script></body></html>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v4</footer>
+<script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
+</body></html>
