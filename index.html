@@ -16,14 +16,17 @@ pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radi
 .pay{display:flex;flex-wrap:wrap;gap:6px}.pay input{flex:1;min-width:80px}
 table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;border-bottom:1px solid #e2e8f0;text-align:left}
 .bad{color:#dc2626;font-weight:600}.ok{color:#15803d}#msg{font-size:.85rem;color:#475569}
+#cola{position:sticky;top:0;z-index:10;background:#fef9c3;border:1px solid #facc15;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sent{font-size:.75rem;color:#15803d;font-weight:600}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.kpi{background:#f8fafc;border-radius:8px;padding:8px}.kpi small{display:block;color:#475569}.kpi b{font-size:1.05rem}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
 <header><h1>📋 Cortes semanales</h1></header>
 <main>
 <div class="panel"><div class="row">
 <label>Desde<input type="date" id="desde"></label><label>Hasta<input type="date" id="hasta"></label>
-<button id="cargar">Cargar datos</button><button class="sec" id="todo">Enviar todo a Cortes</button>
+<button id="cargar">Cargar datos</button><button class="sec" id="todo">Enviar todo a Cortes</button><button class="wa" id="todos">Enviar a todos</button>
 </div><div id="msg"></div></div>
+<div id="cola" hidden></div><div id="faltan" class="panel" hidden></div><div id="resumen" class="panel" hidden></div>
 <div id="cortes" class="grid"></div>
 <div class="panel"><h2 style="margin-top:0;font-size:1.1rem">Diferencias</h2>
 <div style="overflow-x:auto"><table id="dif"></table></div>
@@ -89,29 +92,63 @@ document.getElementById('hasta').value=ls('hasta',iso(today));document.getElemen
 async function fetchCSV(){let err;for(const u of URLS){try{const r=await fetch(u+'&_='+Date.now());if(r.ok){const t=await r.text();if(/FECHA/i.test(t.slice(0,300)))return t}}catch(e){err=e}}throw err||new Error('Sin respuesta')}
 document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.value;if(!d||!h)return msg('Elige fechas');ss('desde',d);ss('hasta',h);msg('Cargando…');
  try{const rows=parseRows(await fetchCSV());CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){msg('Error al cargar: '+e.message)}};
+const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
  for(const c of CORTES){const el=document.createElement('div');el.className='card';const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
   el.innerHTML=`<h3><span>${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div>
-  <pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>
+  <pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
-  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank')};
+  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank');ss(envKey(c),iso(new Date()));render()};
   el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');const p=ls(pagoKey(c),[]);p.push({monto:m,fecha:el.querySelector('.pd').value,nota:el.querySelector('.pn').value});ss(pagoKey(c),p);render()};
   const clr=el.querySelector('.clr');if(clr)clr.onclick=e=>{e.preventDefault();if(confirm('¿Borrar pagos de este corte?')){localStorage.removeItem(pagoKey(c));render()}};
   box.appendChild(el)}
  const t=document.getElementById('dif');t.innerHTML='<tr><th>Corte</th><th>Total</th><th>Pagado</th><th>Diferencia</th></tr>';
- for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0),d=c.total-pag;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.total)}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}}
+ for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0),d=c.total-pag;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.total)}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}
+ renderResumen()}
 document.getElementById('todo').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
  const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:ph[c.id]||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
  const txt='CORTES '+b.desde+' a '+b.hasta+'\n\n'+CORTES.map(c=>c.texto).join('\n\n-----\n\n')+'\n\n```json\n'+JSON.stringify(b)+'\n```';
  navigator.clipboard.writeText(txt).catch(()=>{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='cortes_'+b.desde+'_'+b.hasta+'.txt';a.click();msg('Paquete copiado y descargado: pégalo en el chat con tu asistente')};
 document.getElementById('csv').onclick=()=>{const L=['corte,desde,hasta,total,monto,fecha_pago,nota'];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k.startsWith('pago:'))continue;const[,id,d,h]=k.split(':');const c=CORTES.find(x=>x.id==id&&x.desde==d);for(const p of ls(k,[]))L.push([id,d,h,c?c.total:'',p.monto,p.fecha,p.nota].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))}
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download='pagos.csv';a.click()};
+function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.length){R.hidden=true;return}R.hidden=false;
+ const tot={c:0,a:0,p:0},G={};
+ for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0);const g=c.gestor||'SIN GESTOR';
+  const o=G[g]=G[g]||{c:0,a:0,p:0,sub:[]};o.c+=c.subtotal;o.a+=c.totalAbonos;o.p+=pag;tot.c+=c.subtotal;tot.a+=c.totalAbonos;tot.p+=pag;
+  if(c.cliente)o.sub.push({n:c.cliente,c:c.subtotal,a:c.totalAbonos,p:pag})}
+ const fila=(n,o,st)=>`<tr${st?' style="'+st+'"':''}><td>${n}</td><td>${$m(o.c)}</td><td>${$m(o.a)}</td><td>${$m(o.p)}</td><td>${$m(o.a+o.p)}</td><td class="${Math.abs(o.c-o.a-o.p)>0.009?'bad':'ok'}">${$m(o.c-o.a-o.p)}</td></tr>`;
+ const k=(l,v)=>`<div class="kpi"><small>${l}</small><b>${$m(v)}</b></div>`;
+ let h=`<h2 style="margin-top:0;font-size:1.1rem">Resumen general ${fd(CORTES[0].desde)} – ${fd(CORTES[0].hasta)}</h2><div class="kpis">${k('Total a cobrar',tot.c)}${k('Abonos en hoja',tot.a)}${k('Pagos registrados',tot.p)}${k('Total recibido',tot.a+tot.p)}${k('Pendiente por recibir',tot.c-tot.a-tot.p)}</div>
+ <div style="overflow-x:auto"><table><tr><th>Gestor / cliente</th><th>Total a cobrar</th><th>Abonos en hoja</th><th>Pagos registrados</th><th>Total recibido</th><th>Pendiente</th></tr>`;
+ for(const g of Object.keys(G).sort()){h+=fila('<b>'+g+'</b>',G[g]);for(const s of G[g].sub.sort((a,b)=>a.n.localeCompare(b.n)))h+=fila('&nbsp;&nbsp;↳ '+s.n,s,'color:#475569')}
+ h+=fila('<b>TOTAL</b>',tot,'font-weight:700')+'</table></div>';R.innerHTML=h}
+// ---- Cola "Enviar a todos" ----
+let COLA=null;const nom=c=>c.cliente||c.gestor;
+function abrirCorte(c){const t=ls('telefonos',{})[c.id];window.open('https://wa.me/'+t+'?text='+encodeURIComponent(c.texto),'_blank');ss(envKey(c),iso(new Date()));render()}
+function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
+ if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
+ const c=COLA.lista[COLA.i];b.hidden=false;b.innerHTML=`<span>Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
+ b.querySelector('#qab').onclick=()=>{abrirCorte(c);COLA.i++;COLA.esperando=true;b.hidden=true};
+ b.querySelector('#qsa').onclick=()=>{COLA.i++;mostrarCola()};
+ b.querySelector('#qte').onclick=()=>{COLA=null;mostrarCola();msg('Envío guiado terminado')}}
+const alVolver=()=>{if(COLA&&COLA.esperando&&document.visibilityState=='visible'){COLA.esperando=false;mostrarCola()}};
+document.addEventListener('visibilitychange',alVolver);window.addEventListener('focus',alVolver);
+function iniciarCola(){const ph=ls('telefonos',{});const lista=CORTES.filter(c=>ph[c.id]&&Math.abs(c.total)>0.009);
+ document.getElementById('faltan').hidden=true;if(!lista.length)return msg('Ningún corte con teléfono y total distinto de cero');
+ COLA={lista,i:0,esperando:false};abrirCorte(lista[0]);COLA.i=1;COLA.esperando=true;msg('Envío guiado: al volver a esta página toca "Abrir siguiente" (el navegador no permite abrir todos automáticamente)')}
+document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
+ const sin=CORTES.filter(c=>!ph[c.id]&&Math.abs(c.total)>0.009);const F=document.getElementById('faltan');
+ if(!sin.length)return iniciarCola();
+ F.hidden=false;F.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Cortes sin teléfono (${sin.length})</h2><p style="font-size:.85rem">Captúralos (con 52) o déjalos vacíos para omitirlos.</p>`+sin.map(c=>`<div class="row" style="margin-bottom:6px"><label style="flex:1">${nom(c)} · ${$m(c.total)}<input data-id="${c.id.replace(/"/g,'&quot;')}" inputmode="numeric" placeholder="52XXXXXXXXXX"></label></div>`).join('')+`<div class="row"><button class="wa" id="fgo">Guardar y comenzar</button><button class="sec" id="fca">Cancelar</button></div>`;
+ F.querySelector('#fca').onclick=()=>{F.hidden=true};
+ F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
+ F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();}
 </script></body></html>
