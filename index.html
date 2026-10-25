@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v15</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v16</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -169,6 +169,17 @@ async function nvLoad(force){if(!force&&NV_CACHE&&Date.now()-NV_CACHE.t<30000)re
 /*NV-END*/
 if(typeof document!='undefined'){
 var ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const telN=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();
+const telOk=v=>{v=String(v||'').replace(/\D/g,'');return v.length>=10&&v.length<=15?v:null};
+(function telMigrar(){try{const T=ls('telefonos',{});if(!localStorage.getItem('telefonos_respaldo_v16'))localStorage.setItem('telefonos_respaldo_v16',JSON.stringify(T));const add=(k,v)=>{v=telOk(v);if(!v||!k)return;const n=telN(k);if(!T[n])T[n]=v;if(!T[k])T[k]=v};
+ for(const k in T)add(k,T[k]);
+ for(let i=0;i<localStorage.length;i++){const K=localStorage.key(i);if(K=='telefonos'||K.startsWith('pv_')||K.startsWith('telefonos_respaldo'))continue;
+  if(/^(tel|telefono|phone|wa)[:_|]/i.test(K)){add(K.replace(/^[^:_|]+[:_|]/,'').replace(/:\d{4}-\d\d-\d\d.*$/,''),ls(K,null));continue}
+  if(/tel|phone/i.test(K)){const o=ls(K,null);if(o&&typeof o=='object'&&!Array.isArray(o))for(const k in o)add(k,o[k])}}
+ localStorage.setItem('telefonos',JSON.stringify(T))}catch(e){console.warn('migración teléfonos',e)}})();
+function telGet(id){const T=ls('telefonos',{});if(T[id])return T[id];const n=telN(id);if(T[n])return T[n];for(const k in T)if(telN(k)==n)return T[k];
+ const g=n.split('|')[0];if(n.indexOf('|')<0)for(const k in T)if(telN(k).replace(/\s+\d+$/,'')==g)return T[k];return ''}
+function telSet(id,v){const T=ls('telefonos',{});v=String(v||'').replace(/\D/g,'');if(v){T[id]=v;T[telN(id)]=v}else{delete T[id];for(const k of Object.keys(T))if(telN(k)==telN(id))delete T[k]}ss('telefonos',T)}
 let CORTES=[],CROWS=null;const clGen=()=>[document.getElementById('desde').value,document.getElementById('hasta').value];
 function clBuild(){const[d,h]=clGen();const cr=ls('cl_rangos',{});const L=buildCortes(CROWS,d,h);const out=L.map(c=>{const r=cr[c.id];if(!r)return c;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
  for(const id in cr)if(!out.find(c=>c.id==id)){const x=buildCortes(CROWS,cr[id][0],cr[id][1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}out.forEach(clArrastre);return out.sort((a,b)=>a.id.localeCompare(b.id))}
@@ -196,13 +207,13 @@ document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.
  try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CROWS=rows;CORTES=clBuild();ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
-function telPedir(c,el){let t=ls('telefonos',{})[c.id];if(t)return t;const v=(prompt('Teléfono WhatsApp de '+(c.cliente||c.gestor)+' (con 52, ej. 52XXXXXXXXXX):','52')||'').replace(/\D/g,'');if(v.length<10){const x=el.querySelector('.cfg');x.hidden=false;x.scrollIntoView({behavior:'smooth',block:'center'});alert('Falta el teléfono de '+(c.cliente||c.gestor)+'. Captúralo en ⚙️ y vuelve a intentar.');return null}const p=ls('telefonos',{});p[c.id]=v;ss('telefonos',p);return v}
+function telPedir(c,el){let t=telGet(c.id);if(t)return t;const v=(prompt('Teléfono WhatsApp de '+(c.cliente||c.gestor)+' (con 52, ej. 52XXXXXXXXXX):','52')||'').replace(/\D/g,'');if(v.length<10){const x=el.querySelector('.cfg');x.hidden=false;x.scrollIntoView({behavior:'smooth',block:'center'});alert('Falta el teléfono de '+(c.cliente||c.gestor)+'. Captúralo en ⚙️ y vuelve a intentar.');return null}telSet(c.id,v);return v}
 const OPEN=new Set(ls('cl_open',[]));const saveOpen=()=>ss('cl_open',[...OPEN]);
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
  for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
   el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(c.id)?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="sum tg2"><span>${fd(c.desde)} – ${fd(c.hasta)}</span>${c.total-pag>0.009?'<span class="tag" style="background:#fee2e2">⏳ Pendiente</span>':c.total-pag<-0.009?'<span class="tag" style="background:#dbeafe">Saldo a favor</span>':'<span class="tag" style="background:#dcfce7">✔ Pagado</span>'}${c.revisar?'<span class="tag" style="background:#fed7aa">⚠ Revisar</span>':''}<b class="tt">${$m(c.total-pag)}</b></div>
-  <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div><div class="cb" ${OPEN.has(c.id)?'':'hidden'}>
+  <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${telGet(c.id)||''}"></label><button class="sec savetel">Guardar</button></div><div class="cb" ${OPEN.has(c.id)?'':'hidden'}>
   ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}</div><div style="font-size:.85rem">Cargos del periodo: <b>${$m(c.subtotal)}</b> · Saldo anterior: <b class="${(c.saldoAnt||0)>0.009?'bad':'ok'}">${(c.saldoAnt||0)<-0.009?'a favor '+$m(-c.saldoAnt):$m(c.saldoAnt||0)}</b>${c.arr&&c.arr.ign?' <span class="tag">sin arrastre</span>':''} <a href="#" class="ajt">ajustar</a></div><div class="ajbox" hidden style="font-size:.8rem"><label>Ajuste / saldo inicial (+ debe, − a favor)<input type="number" step="0.01" class="ajm" value="${c.arr&&c.arr.aj||''}"></label><label><input type="checkbox" class="aji" ${c.arr&&c.arr.ign?'checked':''}> Ignorar saldo anterior</label><button class="sec ajok">Guardar</button><div style="opacity:.7">${c.arr?`Desde ${fd(clArr())}: cargos ${$m(c.arr.cargos)} − abonos hoja ${$m(c.arr.ab)} − pagos registrados ${$m(c.arr.pg)}`:''}</div></div><pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button>${c.total-pag>0.009?'<button class="wa rec" style="background:#0e7490">🔔 Recordatorio de pago</button>':'<button class="sec rec" disabled>✔ Pagado</button>'}<b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>${pagos.length?`<div class="row"><button class="wa conf">✅ Confirmar pago</button>${ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,null)?`<span class="sent">✔ Confirmación enviada ${fd(ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,''))}</span>`:''}</div>`:''}</div>`;
@@ -211,7 +222,7 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   el.querySelector('.rec').onclick=()=>{if(!(c.total-pag>0.009))return;const t=telPedir(c,el);if(!t)return;abrirWA(t,textoRecordatorio(c,pag));ss('recordado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()))};
   const tgl=()=>{const x=el.querySelector('.cb');x.hidden=!x.hidden;x.hidden?OPEN.delete(c.id):OPEN.add(c.id);saveOpen();el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};el.querySelector('.tg').onclick=tgl;el.querySelector('.tg2').onclick=tgl;
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
-  el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
+  el.querySelector('.savetel').onclick=()=>{telSet(c.id,el.querySelector('.tel').value);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
   el.querySelector('.send').onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()};
   el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');const p=ls(pagoKey(c),[]);p.push({monto:m,fecha:el.querySelector('.pd').value,nota:el.querySelector('.pn').value});ss(pagoKey(c),p);render()};
@@ -226,7 +237,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function renderRevisar(){const R=document.getElementById('revisar');const F=CORTES.filter(c=>c.revisar);if(!F.length){R.hidden=true;return}R.hidden=false;
  R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">⚠ Por revisar: cortes con otros trámites (${F.length})</h2>`+F.map(c=>`<div style="margin-bottom:6px"><b>${esc(nom(c))}</b>: `+(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)} — ${esc(l.texto)} — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('; ')+'</div>').join('')}
 document.getElementById('todo').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
- const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:ph[c.id]||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
+ const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:telGet(c.id)||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
  const txt='CORTES '+b.desde+' a '+b.hasta+'\n\n'+CORTES.map(c=>c.texto).join('\n\n-----\n\n')+'\n\n```json\n'+JSON.stringify(b)+'\n```';
  navigator.clipboard.writeText(txt).catch(()=>{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='cortes_'+b.desde+'_'+b.hasta+'.txt';a.click();msg('Paquete copiado y descargado: pégalo en el chat con tu asistente')};
 document.getElementById('csv').onclick=()=>{const L=['corte,desde,hasta,total,monto,fecha_pago,nota'];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k.startsWith('pago:'))continue;const[,id,d,h]=k.split(':');const c=CORTES.find(x=>x.id==id&&x.desde==d);for(const p of ls(k,[]))L.push([id,d,h,c?c.total:'',p.monto,p.fecha,p.nota].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))}
@@ -245,7 +256,7 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
 // ---- Cola "Enviar a todos" ----
 let COLA=null;const nom=c=>c.cliente||c.gestor;
 function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e,m=ls('waApp','b');if(m==='s'&&navigator.share){navigator.share({text:x}).catch(()=>{});return}if(/Android/i.test(navigator.userAgent)){const pk=m==='n'?'com.whatsapp':'com.whatsapp.w4b';location.href='intent://send/?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package='+pk+';end'}else{window.open(w,'_blank')}}
-function abrirCorte(c){const t=ls('telefonos',{})[c.id];abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
+function abrirCorte(c){const t=telGet(c.id);abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
  const c=COLA.lista[COLA.i];b.hidden=false;b.style.background=c.revisar?'#fed7aa':'';b.style.borderColor=c.revisar?'#ea580c':'';b.innerHTML=`<span>${c.revisar?'<span class="qrev">⚠ Revisar otros trámites</span> ':''}Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
@@ -254,19 +265,28 @@ function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidde
  b.querySelector('#qte').onclick=()=>{COLA=null;mostrarCola();msg('Envío guiado terminado')}}
 const alVolver=()=>{if(COLA&&COLA.esperando&&document.visibilityState=='visible'){COLA.esperando=false;mostrarCola()}};
 document.addEventListener('visibilitychange',alVolver);window.addEventListener('focus',alVolver);
-function iniciarCola(){const ph=ls('telefonos',{});const lista=CORTES.filter(c=>ph[c.id]&&Math.abs(c.total)>0.009);
+function iniciarCola(){const ph=ls('telefonos',{});const lista=CORTES.filter(c=>telGet(c.id)&&Math.abs(c.total)>0.009);
  document.getElementById('faltan').hidden=true;if(!lista.length)return msg('Ningún corte con teléfono y total distinto de cero');
  COLA={lista,i:0,esperando:false};abrirCorte(lista[0]);COLA.i=1;COLA.esperando=true;msg('Envío guiado: al volver a esta página toca "Abrir siguiente" (el navegador no permite abrir todos automáticamente)')}
 document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
- const sin=CORTES.filter(c=>!ph[c.id]&&Math.abs(c.total)>0.009);const F=document.getElementById('faltan');
+ const sin=CORTES.filter(c=>!telGet(c.id)&&Math.abs(c.total)>0.009);const F=document.getElementById('faltan');
  if(!sin.length)return iniciarCola();
  F.hidden=false;F.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Cortes sin teléfono (${sin.length})</h2><p style="font-size:.85rem">Captúralos (con 52) o déjalos vacíos para omitirlos.</p>`+sin.map(c=>`<div class="row" style="margin-bottom:6px"><label style="flex:1">${nom(c)} · ${$m(c.total)}<input data-id="${c.id.replace(/"/g,'&quot;')}" inputmode="numeric" placeholder="52XXXXXXXXXX"></label></div>`).join('')+`<div class="row"><button class="wa" id="fgo">Guardar y comenzar</button><button class="sec" id="fca">Cancelar</button></div>`;
  F.querySelector('#fca').onclick=()=>{F.hidden=true};
- F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
+ F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v){p[i.dataset.id]=v;p[telN(i.dataset.id)]=v}});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v15</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v16</footer>
+<details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
+<script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
+function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
+ const sec=(tit,o,cls)=>{const ks=Object.keys(o).sort();return `<h4 style="margin:8px 0 4px">${tit} (${ks.length})</h4>`+(ks.map(k=>`<div class="row" style="margin-bottom:4px"><label style="flex:1">${E(k.replace('CANEK|','CANEK · '))}<input class="${cls}" data-k="${E(k)}" inputmode="numeric" value="${E(o[k]||'')}"></label></div>`).join('')||'<div style="opacity:.6">Ninguno</div>')};
+ B.innerHTML=sec('Clientes / gestores',C,'tc')+sec('Proveedores',P,'tp')+`<div class="row" style="margin:6px 0"><label style="flex:1">Agregar cliente/gestor (ej. LUIS o CANEK|NOMBRE)<input id="tnk"></label><label>Teléfono<input id="tnv" inputmode="numeric"></label></div><div class="row"><button id="tok">Guardar teléfonos</button></div>`;
+ document.getElementById('tok').onclick=()=>{const T=g('telefonos'),P=g('pv_telefonos');B.querySelectorAll('.tc').forEach(i=>{const v=i.value.replace(/\D/g,''),n=i.dataset.k;for(const k of Object.keys(T))if(N(k)==n){if(v)T[k]=v;else delete T[k]}if(v)T[n]=v});
+  B.querySelectorAll('.tp').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)P[i.dataset.k]=v;else delete P[i.dataset.k]});const nk=document.getElementById('tnk').value.trim(),nv=document.getElementById('tnv').value.replace(/\D/g,'');if(nk&&nv){T[nk]=nv;T[N(nk)]=nv}
+  localStorage.setItem('telefonos',JSON.stringify(T));localStorage.setItem('pv_telefonos',JSON.stringify(P));draw();alert('Teléfonos guardados. Recarga los cortes para verlos aplicados.')}}
+document.getElementById('telcfg').addEventListener('toggle',e=>{if(e.target.open)draw()})})()</script>
 <details class="panel" id="nvcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">⚙️ Fuente de datos (hoja anterior / bot)</summary>
 <p style="font-size:.8rem;color:#475569">Fechas <b>anteriores</b> a la fecha de corte se leen de la hoja anterior; desde la fecha de corte en adelante, de la hoja del bot (Documentos entregados - Bot RyC).</p>
 <div class="row"><label>Fecha de corte (cutover)<input type="date" id="nvcut"></label></div>
@@ -394,10 +414,10 @@ async function renderHist(){const H=$('phist');H.hidden=false;let all=[];try{all
  const byId=id=>all.find(p=>p.id==id);
  H.querySelectorAll('.hv').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block">`:'<div class="panel">Este pago no tiene comprobante</div>')});
  H.querySelectorAll('.hc').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(`<div class="panel" style="max-width:600px"><pre style="max-height:none">${esc(p.snapshot.texto)}</pre><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}${p.nota?' · '+esc(p.nota):''}</p></div>`)});
- $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_'))est[k]=localStorage.getItem(k)}
+ $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_')||k=='telefonos')est[k]=localStorage.getItem(k)}
   const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:11,prepago:prepagoMap(),credito:ls('pv_credito',{}),exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
  $('phimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pagos))throw new Error('Archivo no válido');let n=0;for(const p of j.pagos){if(p&&p.id){await pagoPut(p);n++}}
-  if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);if(j.prepago)ss('pv_prepago',j.prepago);if(j.credito)ss('pv_credito',j.credito);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
+  if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);for(const tk of ['telefonos','pv_telefonos'])if(j.localStorage[tk]){try{const A=JSON.parse(localStorage.getItem(tk)||'{}'),B=JSON.parse(j.localStorage[tk]);for(const x in B)if(!A[x])A[x]=B[x];localStorage.setItem(tk,JSON.stringify(A))}catch(e){}}if(j.prepago)ss('pv_prepago',j.prepago);if(j.credito)ss('pv_credito',j.credito);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
 $('phistBtn').onclick=()=>{const H=$('phist');if(!H.hidden){H.hidden=true;return}renderHist().then(()=>H.scrollIntoView({behavior:'smooth'}))};
 $('pcargar').onclick=cargar;
 // pestañas
