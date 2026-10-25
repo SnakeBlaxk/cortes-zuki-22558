@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v11</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v12</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -169,23 +169,32 @@ async function nvLoad(force){if(!force&&NV_CACHE&&Date.now()-NV_CACHE.t<30000)re
 /*NV-END*/
 if(typeof document!='undefined'){
 var ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-let CORTES=[];const msg=t=>document.getElementById('msg').textContent=t;
+let CORTES=[],CROWS=null;const clGen=()=>[document.getElementById('desde').value,document.getElementById('hasta').value];
+function clBuild(){const[d,h]=clGen();const cr=ls('cl_rangos',{});const L=buildCortes(CROWS,d,h);const out=L.map(c=>{const r=cr[c.id];if(!r)return c;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
+ for(const id in cr)if(!out.find(c=>c.id==id)){const x=buildCortes(CROWS,cr[id][0],cr[id][1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}return out.sort((a,b)=>a.id.localeCompare(b.id))}
+function clVacio(c,r){const x={id:c.id,gestor:c.gestor,cliente:c.cliente,lineas:[],abonos:[],subtotal:0,totalAbonos:0,total:0,otros:[],revisar:false,desde:r[0],hasta:r[1]};x.texto=textoCorte(x);return x}
+function clSetRango(id,d,h){if(!CROWS)return msg('Espera a que carguen los datos');const cr=ls('cl_rangos',{});const[gd,gh]=clGen();if(!d||!h||d>h||(d==gd&&h==gh))delete cr[id];else cr[id]=[d,h];ss('cl_rangos',cr);CORTES=clBuild();ss('ultimos',CORTES);render()}
+function textoRecordatorio(c,pag){const n=c.cliente||c.gestor;const ab=(c.totalAbonos||0)+pag,saldo=c.total-pag;return ['Hola '+n+', ¡buen día! 😊','','Te comparto un recordatorio amable de tu corte del '+fd(c.desde)+' al '+fd(c.hasta)+':','','• Total del corte: '+$m(c.subtotal),'• Abonos registrados: '+$m(ab),'• *Saldo pendiente: '+$m(saldo)+'*','','Cuando tengas oportunidad, ¿nos apoyas con el pago? Si ya lo realizaste, por favor compárteme el comprobante y lo registro. ¡Muchas gracias por tu confianza! 🙏'].join('\n')}
+const msg=t=>document.getElementById('msg').textContent=t;
 const today=new Date(),iso=d=>d.toISOString().slice(0,10);
 document.getElementById('hasta').value=ls('hasta',iso(today));document.getElementById('desde').value=ls('desde',iso(new Date(today-6*864e5)));
+['desde','hasta'].forEach(i=>document.getElementById(i).addEventListener('change',()=>{const[d,h]=clGen();if(CROWS&&d&&h&&d<=h){ss('desde',d);ss('hasta',h);CORTES=clBuild();ss('ultimos',CORTES);render()}}));
 async function fetchCSV(){let err;for(const u of URLS){try{const r=await fetch(u+'&_='+Date.now());if(r.ok){const t=await r.text();if(/FECHA/i.test(t.slice(0,300)))return t}}catch(e){err=e}}throw err||new Error('Sin respuesta')}
 document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.value;if(!d||!h)return msg('Elige fechas');ss('desde',d);ss('hasta',h);msg('Cargando…');
- try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
+ try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CROWS=rows;CORTES=clBuild();ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 const OPEN=new Set();
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
  for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
-  el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(c.id)?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
+  el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(c.id)?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}</span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${phones[c.id]||''}"></label><button class="sec savetel">Guardar</button></div>
-  ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<pre ${OPEN.has(c.id)?'':'hidden'}></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button><b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
+  ${c.revisar?`<div class="badge">⚠ Revisar otros trámites</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).join('<br>')}</div>`:''}<div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}</div><pre ${OPEN.has(c.id)?'':'hidden'}></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button>${c.total-pag>0.009?'<button class="wa rec" style="background:#0e7490">🔔 Recordatorio de pago</button>':'<button class="sec rec" disabled>✔ Pagado</button>'}<b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
+  const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)clSetRango(c.id,ri.value,rf.value)};el.querySelector('.rr').onclick=()=>clSetRango(c.id,null,null);
+  el.querySelector('.rec').onclick=()=>{if(!(c.total-pag>0.009))return;const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}abrirWA(t,textoRecordatorio(c,pag));ss('recordado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()))};
   el.querySelector('.tg').onclick=()=>{const x=el.querySelector('pre');x.hidden=!x.hidden;x.hidden?OPEN.delete(c.id):OPEN.add(c.id);el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
@@ -213,7 +222,7 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
   if(c.cliente)o.sub.push({n:c.cliente,c:c.subtotal,a:c.totalAbonos,p:pag})}
  const fila=(n,o,st)=>`<tr${st?' style="'+st+'"':''}><td>${n}</td><td>${$m(o.c)}</td><td>${$m(o.a)}</td><td>${$m(o.p)}</td><td>${$m(o.a+o.p)}</td><td class="${Math.abs(o.c-o.a-o.p)>0.009?'bad':'ok'}">${$m(o.c-o.a-o.p)}</td></tr>`;
  const k=(l,v)=>`<div class="kpi"><small>${l}</small><b>${$m(v)}</b></div>`;
- let h=`<h2 style="margin-top:0;font-size:1.1rem">Resumen general ${fd(CORTES[0].desde)} – ${fd(CORTES[0].hasta)}</h2><div class="kpis">${k('Total a cobrar',tot.c)}${k('Abonos en hoja',tot.a)}${k('Pagos registrados',tot.p)}${k('Total recibido',tot.a+tot.p)}${k('Pendiente por recibir',tot.c-tot.a-tot.p)}</div>
+ let h=`<h2 style="margin-top:0;font-size:1.1rem">Resumen general ${fd(clGen()[0])} – ${fd(clGen()[1])}${CORTES.some(c=>c.custom)?' <small style="font-weight:400">(incluye rangos personalizados)</small>':''}</h2><div class="kpis">${k('Total a cobrar',tot.c)}${k('Abonos en hoja',tot.a)}${k('Pagos registrados',tot.p)}${k('Total recibido',tot.a+tot.p)}${k('Pendiente por recibir',tot.c-tot.a-tot.p)}</div>
  <div style="overflow-x:auto"><table><tr><th>Gestor / cliente</th><th>Total a cobrar</th><th>Abonos en hoja</th><th>Pagos registrados</th><th>Total recibido</th><th>Pendiente</th></tr>`;
  for(const g of Object.keys(G).sort()){h+=fila('<b>'+g+'</b>',G[g]);for(const s of G[g].sub.sort((a,b)=>a.n.localeCompare(b.n)))h+=fila('&nbsp;&nbsp;↳ '+s.n,s,'color:#475569')}
  h+=fila('<b>TOTAL</b>',tot,'font-weight:700')+'</table></div>';R.innerHTML=h}
@@ -240,7 +249,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v11</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v12</footer>
 <details class="panel" id="nvcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">⚙️ Fuente de datos (hoja anterior / bot)</summary>
 <p style="font-size:.8rem;color:#475569">Fechas <b>anteriores</b> a la fecha de corte se leen de la hoja anterior; desde la fecha de corte en adelante, de la hoja del bot (Documentos entregados - Bot RyC).</p>
 <div class="row"><label>Fecha de corte (cutover)<input type="date" id="nvcut"></label></div>
