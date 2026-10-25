@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v10</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v11</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -120,6 +120,53 @@ function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR 
  L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');return L.join('\n')}
 if(typeof module!='undefined')module.exports={parseRows,buildCortes};
 /*CORE-END*/
+/*NV-START*/
+const NV_SHEET='14uv9rfpMN3Oj-b61RhdjGJ86HMZwMjnnCmfsfC1RTok',NV_COST_GID='2030347587';
+const nvLs=(k,d)=>{try{if(typeof localStorage=='undefined')return d;const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}};
+const NV_CUT_DEF='2026-10-24';
+function nvCut(){return nvLs('nv_cutover',NV_CUT_DEF)||NV_CUT_DEF}
+// trámite (bot, normalizado) -> [etiqueta cliente, precio Santi]
+const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta por datos',70],'ACTAS POR DATOS':['Acta por datos',70],'RFC EXPRESS':['RFC económico/Express',30],'RFC CON DOMICILIO FISCAL':['RFC con domicilio fiscal',40],
+ 'RFC CON ID/CIF':['RFC con ID/CIF',50],'RFC NORMAL':['RFC normal',70],'RFC ALTERNO':['RFC alterno',145],'ANTECEDENTES PENALES':['Antecedentes penales',70],'FECHA DE RETIRO':['Fecha de retiro',50],
+ 'CITAS SAT':['Citas SAT',230],'NSS':['NSS',5],'CURP':['CURP',5],'CFE':['CFE',5],'NO DERECHOHABIENTE':['No derechohabiente',5],'SEMANAS COTIZADAS':['Semanas cotizadas / vigencias',10],
+ 'VIGENCIA DE DERECHOS':['Semanas cotizadas / vigencias',10],'RESETEO':['Reseteo',150],'CADENA':['Cadena',null]};
+// trámite bot -> columna de '$ proveedores' (editable)
+const NV_MAP_DEF={'Actas':'ACTAS','Acta por datos':'ACTAS','RFC Express':'CLON','RFC con domicilio fiscal':'CLON','RFC con ID/CIF':'CLON','RFC normal':'VERIFICABLE','RFC alterno':'ORIGINAL',
+ 'Antecedentes penales':'ANTECEDENTES','Cadena':'CADENA','Semanas cotizadas':'SEMANAS','Vigencia de derechos':'VIGENCIAS','Fecha de retiro':'FECHA ULT. RETIRO','Citas SAT':'CITAS SAT',
+ 'NSS':'NSS','No derechohabiente':'NO DERECHOHABIENTE','CFE':'CFE','CURP':'','Reseteo':'RESETEO'};
+// columna -> etiqueta proveedor (igual que la hoja anterior para que Comparación cuadre)
+const NV_PLAB={'ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','VERIFICABLE':'RFC verificable','ORIGINAL':'RFC original','IDENTIFICABLE':'IDCIF','GENERACION DE IDCIF':'IDCIF','ANTECEDENTES':'Antecedentes penales',
+ 'SEMANAS':'Semanas / vigencias','VIGENCIAS':'Semanas / vigencias','CITAS SAT':'Citas SAT','RESETEO':'Reseteo / web','FECHA ULT. RETIRO':'Fecha de retiro','NSS':'NSS','NO DERECHOHABIENTE':'No derechohabiente','CFE':'CFE','SINDO':'SINDO','SALARIO':'Salario'};
+function nvMap(){return Object.assign({},NV_MAP_DEF,nvLs('nv_map',{}))}
+function nvMapGet(M,t){const k=Object.keys(M).find(x=>norm(x)==norm(t));return k!=null?M[k]:null}
+function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=>H.indexOf(n);
+ const I={f:ix('FECHA'),c:ix('CLIENTE'),g:ix('GESTOR'),t:ix('TRAMITE'),q:ix('CANTIDAD'),p:ix('PRECIO'),s:ix('SUBTOTAL'),pr:ix('PROVEEDOR'),n:ix('NOTAS'),id:ix('ID')};
+ const out=[];for(const r of R.slice(1)){const fecha=parseFecha(r[I.f]);if(!fecha)continue;const t=String(r[I.t]||'').trim();if(!t)continue;
+  const pv=String(r[I.p]==null?'':r[I.p]).trim(),q=num(r[I.q])||1;
+  out.push({fecha,cliente:String(r[I.c]||'').trim(),gestor:norm(r[I.g]),tramite:t,cantidad:q,precio:pv===''?null:num(pv),subtotal:String(r[I.s]||'').trim()===''?null:num(r[I.s]),prov:String(r[I.pr]||'').trim().toUpperCase().replace(/\s+/g,' '),notas:r[I.n]||'',id:r[I.id]||''})}
+ return out}
+function nvCostos(text){const R=parseCSV(text);const H=R[0].map(norm);const C={};
+ for(const r of R.slice(1)){const p=String(r[0]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!p)continue;C[p]={};
+  for(let j=1;j<H.length;j++){if(!H[j])continue;const v=String(r[j]||'').trim();if(!v)continue;C[p][H[j]]=num(v)}}return C}
+function nvCliRows(N){return N.map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot'};
+  if(cat&&cat[0]=='Reseteo'){Object.assign(it,{tramite:'Reseteo',unit:RESETEO,subtotal:RESETEO*x.cantidad,santi:RESETEO,reseteo:true})}
+  else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
+   if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
+   else Object.assign(it,{tramite:'Otros: '+t,unit,subtotal:sub,santi:null,otros:true,texto:t+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
+  return {fecha:x.fecha,cliente:x.cliente,gestor:x.gestor,items:[it],abono:0,subdia:0,src:'bot'}})}
+function nvProvRows(N,C){const M=nvMap();return N.map(x=>{const p=x.prov||'SIN PROVEEDOR';const col=norm(nvMapGet(M,x.tramite)||'');const lab=col?(NV_PLAB[col]||col):x.tramite;
+  const cp=C[p]||{};const has=col&&Object.prototype.hasOwnProperty.call(cp,col);const cost=has?cp[col]:0;const st=Math.round(cost*x.cantidad*100)/100;
+  return {fecha:x.fecha,prov:p,items:[{t:lab,c:x.cantidad,st,sc:!has,orig:x.tramite}],total:st,sub:st,src:'bot',sinProv:/NUEVOS PEDIDOS/.test(p)||!x.prov}})}
+function nvMerge(oldRows,newRows){const cut=nvCut();return oldRows.filter(r=>r.fecha<cut).concat(newRows.filter(r=>r.fecha>=cut))}
+function nvFuente(d,h){const cut=nvCut();return 'Fuente: '+(h<cut?'hoja anterior':d>=cut?'bot':'hoja anterior (< '+cut.split('-').reverse().join('/')+') + bot')}
+const NV_URL=g=>'https://docs.google.com/spreadsheets/d/'+NV_SHEET+'/export?format=csv'+(g?'&gid='+g:'');
+let NV_CACHE=null;
+async function nvLoad(force){if(!force&&NV_CACHE&&Date.now()-NV_CACHE.t<30000)return NV_CACHE;
+ const[a,b]=await Promise.all([fetch(NV_URL()+'&_='+Date.now()).then(r=>{if(!r.ok)throw new Error('Hoja bot HTTP '+r.status);return r.text()}),
+  fetch('https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid='+NV_COST_GID+'&_='+Date.now()).then(r=>{if(!r.ok)throw new Error('$ proveedores HTTP '+r.status);return r.text()})]);
+ if(!/TR[AÁ]MITE/i.test(a.slice(0,300)))throw new Error('Hoja del bot no legible (¿compartida?)');
+ NV_CACHE={t:Date.now(),N:nvParse(a),C:nvCostos(b)};return NV_CACHE}
+/*NV-END*/
 if(typeof document!='undefined'){
 var ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 let CORTES=[];const msg=t=>document.getElementById('msg').textContent=t;
@@ -127,7 +174,7 @@ const today=new Date(),iso=d=>d.toISOString().slice(0,10);
 document.getElementById('hasta').value=ls('hasta',iso(today));document.getElementById('desde').value=ls('desde',iso(new Date(today-6*864e5)));
 async function fetchCSV(){let err;for(const u of URLS){try{const r=await fetch(u+'&_='+Date.now());if(r.ok){const t=await r.text();if(/FECHA/i.test(t.slice(0,300)))return t}}catch(e){err=e}}throw err||new Error('Sin respuesta')}
 document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.value;if(!d||!h)return msg('Elige fechas');ss('desde',d);ss('hasta',h);msg('Cargando…');
- try{const rows=parseRows(await fetchCSV());CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){msg('Error al cargar: '+e.message)}};
+ try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CORTES=buildCortes(rows,d,h);ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 const OPEN=new Set();
@@ -193,7 +240,18 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v10</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v11</footer>
+<details class="panel" id="nvcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">⚙️ Fuente de datos (hoja anterior / bot)</summary>
+<p style="font-size:.8rem;color:#475569">Fechas <b>anteriores</b> a la fecha de corte se leen de la hoja anterior; desde la fecha de corte en adelante, de la hoja del bot (Documentos entregados - Bot RyC).</p>
+<div class="row"><label>Fecha de corte (cutover)<input type="date" id="nvcut"></label></div>
+<p style="font-size:.8rem;color:#475569;margin-bottom:0">Equivalencia trámite del bot → columna de costo en '$ proveedores':</p><div id="nvmap" style="overflow-x:auto"></div>
+<div class="row" style="margin-top:8px"><button id="nvok">Guardar</button><button class="sec" id="nvrst">Restablecer por defecto</button></div></details>
+<script>(function(){const $=i=>document.getElementById(i);const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function draw(){$('nvcut').value=nvCut();const M=nvMap();const cols=Object.keys(NV_PLAB);
+ $('nvmap').innerHTML='<datalist id="nvcols">'+cols.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist><table><tr><th>Trámite (bot)</th><th>Columna costo</th></tr>'+Object.keys(M).map(k=>'<tr><td>'+esc(k)+'</td><td><input list="nvcols" class="nvc" data-k="'+esc(k)+'" value="'+esc(M[k]||'')+'"></td></tr>').join('')+'<tr><td><input id="nvnk" placeholder="Nuevo trámite"></td><td><input list="nvcols" id="nvnv" placeholder="Columna"></td></tr></table>'}
+$('nvok').onclick=()=>{const c=$('nvcut').value;if(!c)return alert('Fecha inválida');localStorage.setItem('nv_cutover',JSON.stringify(c));const M={};document.querySelectorAll('.nvc').forEach(x=>M[x.dataset.k]=x.value.trim().toUpperCase());const nk=$('nvnk').value.trim();if(nk)M[nk]=$('nvnv').value.trim().toUpperCase();localStorage.setItem('nv_map',JSON.stringify(M));NV_CACHE=null;draw();alert('Guardado. Vuelve a cargar los datos de cada pestaña.')};
+$('nvrst').onclick=()=>{if(!confirm('¿Restablecer fecha de corte y equivalencias?'))return;localStorage.removeItem('nv_cutover');localStorage.removeItem('nv_map');draw()};draw()})()</script>
+
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 <script>
 /*PCORE-START*/
@@ -205,14 +263,14 @@ function pParse(text){const R=parseCSV(text);const H=R[0].map(h=>String(h||'').t
  const out=[];for(const r of R.slice(1)){const f=parseFecha(r[iF]);const p=String(r[iP]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!f||!p)continue;
   const it=[];let sub=0;for(const q of Q){const c=num(r[q.j]),st=q.s>=0?num(r[q.s]):0;sub+=st;if(c||st)it.push({t:q.lab,c,st})}
   const tot=num(r[iT]);if(!it.length&&!tot)continue;out.push({fecha:f,prov:p,items:it,total:tot,sub})}return out}
-function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
+function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
  return Object.values(G).map(c=>{c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}).sort((a,b)=>a.prov.localeCompare(b.prov))}
 function pFd(s){const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
 function pM(n){return '$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function pTexto(c){const L=['*CORTE PROVEEDOR '+c.prov+'*','Del '+pFd(c.desde)+' al '+pFd(c.hasta),''];let f='';
  for(const l of c.lineas){if(l.fecha!=f){f=l.fecha;L.push('📅 '+pFd(f))}L.push('  • '+l.t+': '+l.c)}
  L.push('','*MONTO A PAGAR: '+pM(c.monto)+'*','','Por favor confirma si el corte está correcto ✅');return L.join('\n')}
-function pOne(rows,p,d,h){const c={prov:p,desde:d,hasta:h,lineas:[],monto:0,dif:0};for(const r of rows){if(r.prov!=p||r.fecha<d||r.fecha>h)continue;c.lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c})));c.monto+=r.total;c.dif+=r.total-r.sub}
+function pOne(rows,p,d,h){const c={prov:p,desde:d,hasta:h,lineas:[],monto:0,dif:0};for(const r of rows){if(r.prov!=p||r.fecha<d||r.fecha>h)continue;c.lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));c.monto+=r.total;c.dif+=r.total-r.sub}
  c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}
 /*PCORE-END*/
 (function(){
@@ -232,7 +290,7 @@ function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMont
 const ld=ls('pv_rango',null);if(ld){$('pdesde').value=ld[0];$('phasta').value=ld[1]}else{$('pdesde').value=$('desde').value;$('phasta').value=$('hasta').value}
 async function cargar(){const d=$('pdesde').value,h=$('phasta').value;if(!d||!h||d>h)return pmsg('Rango de fechas inválido');ss('pv_rango',[d,h]);pmsg('Cargando…');
  try{const r=await fetch(P_URL+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!/PROVEEDOR/i.test(t.slice(0,500)))throw new Error('Respuesta inesperada (¿hoja compartida?)');
-  ROWS=pParse(t);try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+')')}catch(e){pmsg('Error al cargar: '+e.message)}render()}
+  ROWS=pParse(t);let nvE='';try{const V=await nvLoad();ROWS=nvMerge(ROWS,nvProvRows(V.N,V.C))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+') · '+nvFuente(d,h)+nvE)}catch(e){pmsg('Error al cargar: '+e.message)}render()}
 function gen(){return [$('pdesde').value,$('phasta').value]}
 function rebuild(){const[d,h]=gen();const cr=ls('pv_rangos',{}),ad=ls('pv_agregados',[]);const S=new Set();
  for(const r of ROWS)if(r.fecha>=d&&r.fecha<=h)S.add(r.prov);for(const p in cr)if(ROWS.some(r=>r.prov==p&&r.fecha>=cr[p][0]&&r.fecha<=cr[p][1]))S.add(p);for(const p of ad)S.add(p);
@@ -266,11 +324,11 @@ function render(){const B=$('pcortes');B.innerHTML='';
  A.innerHTML=ROWS.length?`<label style="flex:1">Agregar proveedor<select id="paddSel"><option value="">— elegir —</option>${all.map(p=>`<option>${esc(p)}</option>`).join('')}</select></label>`:'';
  if(ROWS.length)$('paddSel').onchange=e=>{const p=e.target.value;if(!p)return;const ad=ls('pv_agregados',[]);if(!ad.includes(p))ad.push(p);ss('pv_agregados',ad);rebuild();render()};const ph=ls('pv_telefonos',{});
  for(const c of PC){const e=estado(c);const el=document.createElement('div');el.className='card';let f='',rows='';
-  for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}</td><td style="text-align:right">${l.c}</td></tr>`}
+  for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}${l.sc?' <span class="tag" style="background:#fed7aa;color:#9a3412">SIN COSTO</span>':''}</td><td style="text-align:right">${l.c}</td></tr>`}
   const dif=e.pagado&&Math.abs(e.pagado.monto-c.monto)>0.009;
-  el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}</span><span>${isPre(c.prov)?'<span class="tag" style="background:#dbeafe">Prepago</span> ':''}<label style="font-size:.75rem"><input type="checkbox" class="pre" ${isPre(c.prov)?'checked':''}> Prepago</label> <button class="gear" title="Teléfono">⚙️</button></span></h3>
+  el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}${/NUEVOS PEDIDOS|SIN PROVEEDOR/.test(c.prov)?' <span class="tag" style="background:#fed7aa;color:#9a3412">⚠ Sin proveedor asignado</span>':''}${c.lineas.some(l=>l.sc)?' <span class="tag" style="background:#fed7aa;color:#9a3412">⚠ SIN COSTO</span>':''}</span><span>${isPre(c.prov)?'<span class="tag" style="background:#dbeafe">Prepago</span> ':''}<label style="font-size:.75rem"><input type="checkbox" class="pre" ${isPre(c.prov)?'checked':''}> Prepago</label> <button class="gear" title="Teléfono">⚙️</button></span></h3>
   <div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}${ls('pv_agregados',[]).includes(c.prov)?'<button class="sec rq" style="font-size:.75rem;padding:4px 8px">Quitar</button>':''}</div>
-  <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
+  <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · ${nvFuente(c.desde,c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
   <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th></tr>${rows}</table></div>
   ${isPre(c.prov)?'<div style="text-align:right"><span class="tag" style="background:#dbeafe">Prepago · consume créditos (no se paga)</span> '+c.lineas.reduce((a,l)=>a+(+l.c||0),0)+' trámites</div>':`<div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>`}
   ${isPre(c.prov)?'':`<div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
@@ -311,7 +369,7 @@ async function renderHist(){const H=$('phist');H.hidden=false;let all=[];try{all
  H.querySelectorAll('.hv').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block">`:'<div class="panel">Este pago no tiene comprobante</div>')});
  H.querySelectorAll('.hc').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(`<div class="panel" style="max-width:600px"><pre style="max-height:none">${esc(p.snapshot.texto)}</pre><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}${p.nota?' · '+esc(p.nota):''}</p></div>`)});
  $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_'))est[k]=localStorage.getItem(k)}
-  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:10,prepago:prepagoMap(),credito:ls('pv_credito',{}),exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
+  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:11,prepago:prepagoMap(),credito:ls('pv_credito',{}),exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
  $('phimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pagos))throw new Error('Archivo no válido');let n=0;for(const p of j.pagos){if(p&&p.id){await pagoPut(p);n++}}
   if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);if(j.prepago)ss('pv_prepago',j.prepago);if(j.credito)ss('pv_credito',j.credito);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
 $('phistBtn').onclick=()=>{const H=$('phist');if(!H.hidden){H.hidden=true;return}renderHist().then(()=>H.scrollIntoView({behavior:'smooth'}))};
@@ -337,6 +395,7 @@ const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas, Cadenas / Actas 
 const XKNOWN=['C:Actas','C:Acta por datos','C:Semanas cotizadas / vigencias','C:CFE/NSS/No IMSS/CURP','C:RFC económico/Express','C:RFC con domicilio fiscal','C:RFC con ID/CIF','C:RFC normal','C:RFC alterno','C:Antecedentes penales','C:Fecha de retiro','C:Citas SAT','C:Reseteo','C:Otros',
 'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web'];
 if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<2){const E=ls('x_eq',{});delete E['C:Acta por datos'];delete E['P:Cadenas'];ss('x_eq',E);ss('x_eq_v',2)}
+Object.assign(XDEF,{'C:NSS':{g:'NSS'},'P:NSS':{g:'NSS'},'C:CFE':{g:'CFE'},'P:CFE':{g:'CFE'},'C:CURP':{g:'',i:true},'C:No derechohabiente':{g:'No derechohabiente'},'P:No derechohabiente':{g:'No derechohabiente'},'C:Cadena':{g:'Cadenas / Actas por datos'},'C:Fecha de retiro':{g:'Fecha de retiro'},'P:Fecha de retiro':{g:'Fecha de retiro'}});
 function xEq(k,E){return (E&&E[k])||XDEF[k]||{g:''}}
 function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e0=xEq(k,E);const gs=String(e0.g||'').split(',').map(x=>x.trim()).filter(Boolean);for(const g1 of (gs.length?gs:[''])){const e={g:g1,i:e0.i};add1(k,side,who,c,e)}};
  const add1=(k,side,who,c,e)=>{const nm=k.slice(2);
@@ -346,13 +405,13 @@ function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e
  for(const r of prows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)if(i.c)add('P:'+i.t,'P',r.prov,i.c)}
  return Object.values(G).map(g=>{g.dif=g.comprado-g.entregado;return g}).sort((a,b)=>(a.interno-b.interno)||(a.sin-b.sin)||a.g.localeCompare(b.g))}
 /*XCORE-END*/
-(function(){const $=id=>document.getElementById(id);let CR=null,PR=null;
+(function(){const $=id=>document.getElementById(id);let CR=null,PR=null,XNE='';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const xmsg=t=>$('xmsg').textContent=t;const SH='https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid=';
 const r0=ls('x_rango',null);$('xdesde').value=r0?r0[0]:$('desde').value;$('xhasta').value=r0?r0[1]:$('hasta').value;
 async function get(gid){const r=await fetch(SH+gid+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}
 async function cargar(force){const d=$('xdesde').value,h=$('xhasta').value;if(!d||!h||d>h)return xmsg('Rango de fechas inválido');ss('x_rango',[d,h]);
- try{if(force||!CR||!PR){xmsg('Cargando ambas hojas…');const[a,b]=await Promise.all([get('0'),get(P_GID)]);CR=parseRows(a);PR=pParse(b)}render();xmsg('Comparación '+pFd(d)+' – '+pFd(h)+' ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){xmsg('Error al cargar: '+e.message)}}
+ try{if(force||!CR||!PR){xmsg('Cargando ambas hojas…');const[a,b]=await Promise.all([get('0'),get(P_GID)]);CR=parseRows(a);PR=pParse(b);try{const V=await nvLoad(force);CR=nvMerge(CR,nvCliRows(V.N));PR=nvMerge(PR,nvProvRows(V.N,V.C))}catch(e){XNE=' ⚠ Hoja bot: '+e.message}}render();xmsg('Comparación '+pFd(d)+' – '+pFd(h)+' ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+XNE)}catch(e){xmsg('Error al cargar: '+e.message)}}
 function render(){if(!CR)return;const E=ls('x_eq',{});const L=xBuild(CR,PR,$('xdesde').value,$('xhasta').value,E);
  const lst=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li>${esc(k)}: <b>${v}</b></li>`).join('')||'<li>—</li>';
  let h='<tr><th>Trámite</th><th style="text-align:right">Comprado</th><th style="text-align:right">Entregado</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr>';let i=0;
