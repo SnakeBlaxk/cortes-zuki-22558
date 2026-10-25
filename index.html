@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v14</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v15</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -196,6 +196,7 @@ document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.
  try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CROWS=rows;CORTES=clBuild();ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
+function telPedir(c,el){let t=ls('telefonos',{})[c.id];if(t)return t;const v=(prompt('Teléfono WhatsApp de '+(c.cliente||c.gestor)+' (con 52, ej. 52XXXXXXXXXX):','52')||'').replace(/\D/g,'');if(v.length<10){const x=el.querySelector('.cfg');x.hidden=false;x.scrollIntoView({behavior:'smooth',block:'center'});alert('Falta el teléfono de '+(c.cliente||c.gestor)+'. Captúralo en ⚙️ y vuelve a intentar.');return null}const p=ls('telefonos',{});p[c.id]=v;ss('telefonos',p);return v}
 const OPEN=new Set(ls('cl_open',[]));const saveOpen=()=>ss('cl_open',[...OPEN]);
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
  for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=ls(pagoKey(c),[]);const pag=pagos.reduce((a,p)=>a+p.monto,0);
@@ -207,17 +208,17 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   <div>Pagado: <b>${$m(pag)}</b> · Diferencia: <b class="${Math.abs(c.total-pag)>0.009?'bad':'ok'}">${$m(c.total-pag)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos</a>`:''}</div>${pagos.length?`<div class="row"><button class="wa conf">✅ Confirmar pago</button>${ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,null)?`<span class="sent">✔ Confirmación enviada ${fd(ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,''))}</span>`:''}</div>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
   const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)clSetRango(c.id,ri.value,rf.value)};el.querySelector('.rr').onclick=()=>clSetRango(c.id,null,null);
-  el.querySelector('.rec').onclick=()=>{if(!(c.total-pag>0.009))return;const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}abrirWA(t,textoRecordatorio(c,pag));ss('recordado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()))};
+  el.querySelector('.rec').onclick=()=>{if(!(c.total-pag>0.009))return;const t=telPedir(c,el);if(!t)return;abrirWA(t,textoRecordatorio(c,pag));ss('recordado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()))};
   const tgl=()=>{const x=el.querySelector('.cb');x.hidden=!x.hidden;x.hidden?OPEN.delete(c.id):OPEN.add(c.id);saveOpen();el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};el.querySelector('.tg').onclick=tgl;el.querySelector('.tg2').onclick=tgl;
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{const p=ls('telefonos',{});p[c.id]=el.querySelector('.tel').value.replace(/\D/g,'');ss('telefonos',p);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
-  el.querySelector('.send').onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()};
+  el.querySelector('.send').onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()};
   el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');const p=ls(pagoKey(c),[]);p.push({monto:m,fecha:el.querySelector('.pd').value,nota:el.querySelector('.pn').value});ss(pagoKey(c),p);render()};
   el.querySelector('.ajt').onclick=e=>{e.preventDefault();const x=el.querySelector('.ajbox');x.hidden=!x.hidden};el.querySelector('.ajok').onclick=()=>clSetAjuste(c.id,{monto:parseFloat(el.querySelector('.ajm').value)||0,ignorar:el.querySelector('.aji').checked});
-  const cf=el.querySelector('.conf');if(cf)cf.onclick=()=>{const t=ls('telefonos',{})[c.id];if(!t){el.querySelector('.cfg').hidden=false;return msg('Configura el teléfono con ⚙️')}abrirWA(t,textoConfirmacion(c,pagos));ss('confirmado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()));render()};
+  const cf=el.querySelector('.conf');if(cf)cf.onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,textoConfirmacion(c,pagos));ss('confirmado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()));render()};
   const clr=el.querySelector('.clr');if(clr)clr.onclick=e=>{e.preventDefault();if(confirm('¿Borrar pagos de este corte?')){localStorage.removeItem(pagoKey(c));render()}};
-  box.appendChild(el)}
+  el.querySelector('.cb').addEventListener('click',e=>e.stopPropagation());box.appendChild(el)}
  const t=document.getElementById('dif');t.innerHTML='<tr><th>Corte</th><th>Total</th><th>Pagado</th><th>Diferencia</th></tr>';
  for(const c of CORTES){const pag=ls(pagoKey(c),[]).reduce((a,p)=>a+p.monto,0),d=c.total-pag;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.total)}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}
  renderResumen();renderRevisar()}
@@ -265,7 +266,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v14</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v15</footer>
 <details class="panel" id="nvcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">⚙️ Fuente de datos (hoja anterior / bot)</summary>
 <p style="font-size:.8rem;color:#475569">Fechas <b>anteriores</b> a la fecha de corte se leen de la hoja anterior; desde la fecha de corte en adelante, de la hoja del bot (Documentos entregados - Bot RyC).</p>
 <div class="row"><label>Fecha de corte (cutover)<input type="date" id="nvcut"></label></div>
