@@ -22,8 +22,8 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v8</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
-<nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button></nav>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v9</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
 <div class="panel"><div class="row">
@@ -44,6 +44,14 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 <div id="presumen" class="panel" hidden></div>
 <div id="pcortes" class="grid"></div>
 <div id="phist" class="panel" hidden></div>
+</div>
+<div id="secX" hidden>
+<div class="panel"><div class="row">
+<label>Desde<input type="date" id="xdesde"></label><label>Hasta<input type="date" id="xhasta"></label>
+<button id="xcargar">Cargar/Comparar</button><button class="sec" id="xeqBtn">Equivalencias</button>
+</div><div id="xmsg" style="font-size:.85rem;color:#475569"></div></div>
+<div id="xeq" class="panel" hidden></div>
+<div class="panel"><div style="overflow-x:auto"><table id="xtab"></table></div></div>
 </div>
 <div id="pmodal" hidden style="position:fixed;inset:0;background:#000d;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px"><button id="pmclose" style="position:absolute;top:10px;right:10px">✕ Cerrar</button><div id="pmbody" style="max-width:100%;max-height:92vh;overflow:auto"></div></div>
 <div id="ppago" hidden style="position:fixed;inset:0;background:#0008;z-index:40;display:flex;align-items:center;justify-content:center;padding:10px"><div class="panel" style="width:100%;max-width:420px;margin:0">
@@ -184,7 +192,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v8</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v9</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 <script>
 /*PCORE-START*/
@@ -292,4 +300,55 @@ $('tabC').onclick=()=>tab('c');$('tabP').onclick=()=>tab('p');
 ROWS=ls('pv_rows',[]);if(ROWS.length)rebuild();else PC=ls('pv_ultimos',[]);render();tab(ls('tab','c'));
 })();
 </script>
-</body></html>
+<script>
+/*XCORE-START*/
+// Equivalencias por defecto: clave 'C:<trámite cliente>' / 'P:<trámite proveedor>' -> {g:grupo, i:interno}
+const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas'},'P:Actas':{g:'Actas'},'P:Cadenas':{g:''},
+'C:RFC económico/Express':{g:'RFC Clon'},'C:RFC con ID/CIF':{g:'RFC Clon'},'C:RFC con domicilio fiscal':{g:'RFC Clon'},'P:Clon':{g:'RFC Clon'},
+'P:RFC con domicilio':{g:''},'P:IDCIF':{g:''},
+'C:RFC normal':{g:'RFC verificable'},'P:RFC verificable':{g:'RFC verificable'},
+'C:RFC alterno':{g:'RFC original'},'P:RFC original':{g:'RFC original'},
+'C:Antecedentes penales':{g:'Antecedentes penales'},'P:Antecedentes penales':{g:'Antecedentes penales'},
+'C:Semanas cotizadas / vigencias':{g:'Semanas / vigencias'},'P:Semanas / vigencias':{g:'Semanas / vigencias'},
+'C:Citas SAT':{g:'Citas SAT'},'P:Citas SAT':{g:'Citas SAT'},'C:Reseteo':{g:'Reseteo'},'P:Reseteo / web':{g:'Reseteo'},
+'C:CFE/NSS/No IMSS/CURP':{g:'',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''}};
+const XKNOWN=['C:Actas','C:Acta por datos','C:Semanas cotizadas / vigencias','C:CFE/NSS/No IMSS/CURP','C:RFC económico/Express','C:RFC con domicilio fiscal','C:RFC con ID/CIF','C:RFC normal','C:RFC alterno','C:Antecedentes penales','C:Fecha de retiro','C:Citas SAT','C:Reseteo','C:Otros',
+'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web'];
+function xEq(k,E){return (E&&E[k])||XDEF[k]||{g:''}}
+function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e=xEq(k,E);const nm=k.slice(2);
+ const gk=e.i?'INT|'+k:(e.g?'G|'+e.g:'SE|'+k);const g=G[gk]=G[gk]||{g:e.g||nm,interno:!!e.i,sin:!e.i&&!e.g,comprado:0,entregado:0,prov:{},cli:{},tipos:{}};
+ g.tipos[k]=1;if(side=='P'){g.comprado+=c;g.prov[who]=(g.prov[who]||0)+c}else{g.entregado+=c;g.cli[who]=(g.cli[who]||0)+c}};
+ for(const r of crows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)add('C:'+(i.otros?'Otros':i.tramite),'C',(r.cliente||'(sin cliente)').trim()+' · '+(r.gestor||'SIN GESTOR'),i.cantidad)}
+ for(const r of prows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)if(i.c)add('P:'+i.t,'P',r.prov,i.c)}
+ return Object.values(G).map(g=>{g.dif=g.comprado-g.entregado;return g}).sort((a,b)=>(a.interno-b.interno)||(a.sin-b.sin)||a.g.localeCompare(b.g))}
+/*XCORE-END*/
+(function(){const $=id=>document.getElementById(id);let CR=null,PR=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const xmsg=t=>$('xmsg').textContent=t;const SH='https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid=';
+const r0=ls('x_rango',null);$('xdesde').value=r0?r0[0]:$('desde').value;$('xhasta').value=r0?r0[1]:$('hasta').value;
+async function get(gid){const r=await fetch(SH+gid+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}
+async function cargar(force){const d=$('xdesde').value,h=$('xhasta').value;if(!d||!h||d>h)return xmsg('Rango de fechas inválido');ss('x_rango',[d,h]);
+ try{if(force||!CR||!PR){xmsg('Cargando ambas hojas…');const[a,b]=await Promise.all([get('0'),get(P_GID)]);CR=parseRows(a);PR=pParse(b)}render();xmsg('Comparación '+pFd(d)+' – '+pFd(h)+' ('+new Date().toLocaleTimeString('es-MX')+')')}catch(e){xmsg('Error al cargar: '+e.message)}}
+function render(){if(!CR)return;const E=ls('x_eq',{});const L=xBuild(CR,PR,$('xdesde').value,$('xhasta').value,E);
+ const lst=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li>${esc(k)}: <b>${v}</b></li>`).join('')||'<li>—</li>';
+ let h='<tr><th>Trámite</th><th style="text-align:right">Comprado</th><th style="text-align:right">Entregado</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr>';let i=0;
+ for(const g of L){const st=g.interno?'<span class="tag">Interno (no se compra)</span>':g.dif==0?'<span style="color:#15803d;font-weight:700">✔ Cuadra</span>':g.dif>0?'<span style="color:#b91c1c;font-weight:700">Faltan entregas/registros</span>':'<span style="color:#c2410c;font-weight:700">Entregado de más</span>';
+  const bg=g.interno?'#f1f5f9':g.dif==0?'#dcfce7':g.dif>0?'#fee2e2':'#ffedd5';
+  h+=`<tr class="xr" data-i="${i}" style="cursor:pointer;background:${bg}"><td>▸ <b>${esc(g.g)}</b>${g.sin?' <span class="tag" style="background:#fef3c7">Sin equivalencia</span>':''}<div style="font-size:.72rem;color:#64748b">${Object.keys(g.tipos).map(k=>(k[0]=='C'?'Cliente: ':'Proveedor: ')+esc(k.slice(2))).join(' · ')}</div></td><td style="text-align:right">${g.comprado}</td><td style="text-align:right">${g.entregado}</td><td style="text-align:right;font-weight:700">${g.interno?'—':(g.dif>0?'+':'')+g.dif}</td><td>${st}</td></tr>
+  <tr id="xd${i}" hidden><td colspan="5"><div style="display:flex;gap:20px;flex-wrap:wrap;font-size:.82rem"><div><b>Por proveedor</b><ul>${lst(g.prov)}</ul></div><div><b>Por cliente · gestor</b><ul>${lst(g.cli)}</ul></div></div></td></tr>`;i++}
+ if(!L.length)h+='<tr><td colspan="5">Sin datos en el rango</td></tr>';$('xtab').innerHTML=h;
+ document.querySelectorAll('.xr').forEach(r=>r.onclick=()=>{const d=$('xd'+r.dataset.i);d.hidden=!d.hidden;r.cells[0].innerHTML=r.cells[0].innerHTML.replace(/^[▸▾]/,d.hidden?'▸':'▾')})}
+function renderEq(){const E=ls('x_eq',{});const ks=new Set(XKNOWN);if(CR)for(const r of CR)for(const i of r.items)ks.add('C:'+(i.otros?'Otros':i.tramite));if(PR)for(const r of PR)for(const i of r.items)ks.add('P:'+i.t);
+ const grupos=[...new Set([...ks].map(k=>xEq(k,E).g).filter(Boolean))].sort();
+ let h=`<h3 style="margin-top:0">Equivalencias</h3><p style="font-size:.8rem;color:#475569">Los trámites con el mismo <b>Grupo</b> se comparan juntos (comprado vs entregado). Deja el grupo vacío para "Sin equivalencia". Marca <b>Interno</b> si no se compra (se excluye de la diferencia).</p><datalist id="xgl">${grupos.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+ <div style="overflow-x:auto"><table><tr><th>Hoja</th><th>Trámite</th><th>Grupo</th><th>Interno (no se compra)</th></tr>`;
+ for(const k of [...ks].sort((a,b)=>a[0]==b[0]?0:a[0]=='C'?-1:1)){const e=xEq(k,E);h+=`<tr><td>${k[0]=='C'?'Clientes':'Proveedores'}</td><td>${esc(k.slice(2))}</td><td><input list="xgl" class="xg" data-k="${esc(k)}" value="${esc(e.g||'')}"></td><td><input type="checkbox" class="xi" data-k="${esc(k)}" ${e.i?'checked':''}></td></tr>`}
+ h+='</table></div><div class="row" style="margin-top:8px"><button id="xeqOk">Guardar y recalcular</button><button class="sec" id="xeqRst">Restablecer por defecto</button></div>';$('xeq').innerHTML=h;
+ $('xeqOk').onclick=()=>{const N={};document.querySelectorAll('.xg').forEach(x=>{N[x.dataset.k]={g:x.value.trim(),i:false}});document.querySelectorAll('.xi').forEach(x=>{N[x.dataset.k].i=x.checked});ss('x_eq',N);renderEq();render();xmsg('Equivalencias guardadas')};
+ $('xeqRst').onclick=()=>{if(!confirm('¿Restablecer equivalencias por defecto?'))return;localStorage.removeItem('x_eq');renderEq();render()}}
+$('xcargar').onclick=()=>cargar(true);$('xeqBtn').onclick=()=>{const p=$('xeq');p.hidden=!p.hidden;if(!p.hidden)renderEq()};
+let xl=false;const tabX=()=>{ss('tab','x');['C','P'].forEach(k=>{$('sec'+k).hidden=true;$('tab'+k).classList.remove('on')});$('secX').hidden=false;$('tabX').classList.add('on');if(!xl){xl=true;cargar(false)}};
+$('tabX').onclick=tabX;['tabC','tabP'].forEach(id=>$(id).addEventListener('click',()=>{$('secX').hidden=true;$('tabX').classList.remove('on')}));
+if(ls('tab','c')=='x')tabX();
+})();
+</script></body></html>
