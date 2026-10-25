@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v9</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v10</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -42,6 +42,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 <button id="pcargar">Cargar datos</button><button class="sec" id="phistBtn">Historial de pagos</button>
 </div><div id="pmsg" style="font-size:.85rem;color:#475569"></div></div>
 <div id="presumen" class="panel" hidden></div>
+<div id="pcred" class="panel" hidden></div>
 <div id="pcortes" class="grid"></div>
 <div id="phist" class="panel" hidden></div>
 </div>
@@ -192,7 +193,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v9</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v10</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 <script>
 /*PCORE-START*/
@@ -238,6 +239,26 @@ function rebuild(){const[d,h]=gen();const cr=ls('pv_rangos',{}),ad=ls('pv_agrega
  PC=[...S].sort((a,b)=>a.localeCompare(b)).map(p=>{const x=cr[p];const c=pOne(ROWS,p,x?x[0]:d,x?x[1]:h);c.custom=!!x;return c});ss('pv_ultimos',PC)}
 function setRango(p,d,h){const cr=ls('pv_rangos',{});const[gd,gh]=gen();if(!d||!h||(d==gd&&h==gh))delete cr[p];else cr[p]=[d,h];ss('pv_rangos',cr);rebuild();render()}
 function estado(c){return ls(stKey(c),{})}
+function prepagoMap(){const m=ls('pv_prepago',null);return m||{'MEGASISTEMAS':true}}
+const isPre=p=>!!prepagoMap()[p];
+function setPre(p,v){const m=prepagoMap();m[p]=!!v;ss('pv_prepago',m)}
+function credCfg(p){const C=ls('pv_credito',{});return Object.assign({saldo:p=='MEGASISTEMAS'?7.5:0,fecha:'2026-10-25',incl:false,recargas:[]},C[p]||{})}
+function credSave(p,c){const C=ls('pv_credito',{});C[p]=c;ss('pv_credito',C)}
+function credCalc(p){const c=credCfg(p);const byD={};let cons=0;for(const r of ROWS){if(r.prov!=p)continue;if(c.incl?r.fecha<c.fecha:r.fecha<=c.fecha)continue;const q=r.items.reduce((a,i)=>a+(+i.c||0),0);if(!q)continue;byD[r.fecha]=(byD[r.fecha]||0)+q;cons+=q}
+ const rec=c.recargas.reduce((a,x)=>a+(+x.cred||0),0);return {c,cons,rec,saldo:Math.round((+c.saldo+rec-cons)*100)/100,byD}}
+function renderCred(){const R=$('pcred');const ps=Object.keys(prepagoMap()).filter(isPre).sort();if(!ps.length){R.hidden=true;return}R.hidden=false;
+ R.innerHTML='<h2 style="margin-top:0;font-size:1.1rem">💳 Créditos prepago</h2>'+ps.map((p,ix)=>{const k=credCalc(p),c=k.c;const w=k.saldo<0?'<div class="bad" style="font-weight:bold">⛔ Saldo NEGATIVO – recargar ya</div>':k.saldo<=2?'<div class="bad" style="font-weight:bold">⚠️ Recargar pronto</div>':'';
+  const ds=Object.keys(k.byD).sort();
+  return `<div class="card" data-p="${esc(p)}" style="margin-bottom:8px"><h3><span>${esc(p)} <span class="tag" style="background:#dbeafe">Prepago</span></span></h3>
+  <div class="kpis"><div class="kpi"><small>Saldo inicial</small><b>${c.saldo}</b></div><div class="kpi"><small>Recargas</small><b>+${k.rec}</b></div><div class="kpi"><small>Consumido</small><b>-${k.cons}</b></div><div class="kpi" style="${k.saldo<=2?'background:#fee2e2;color:#b91c1c':''}"><small>Saldo actual</small><b>${k.saldo}</b></div></div>${w}
+  <div class="row" style="font-size:.8rem;align-items:end"><label>Saldo inicial<input type="number" step="0.5" class="cs" value="${c.saldo}" style="width:80px"></label><label>Fecha base<input type="date" class="cf" value="${c.fecha}"></label><label><input type="checkbox" class="ci" ${c.incl?'checked':''}> incluir el día base</label></div>
+  <div class="row" style="font-size:.8rem;align-items:end"><label>Fecha<input type="date" class="rd" value="${hoyISO()}"></label><label>Créditos<input type="number" step="0.5" class="rc" style="width:70px"></label><label>Monto $<input type="number" step="0.01" class="rm" style="width:90px"></label><label style="flex:1">Nota<input class="rn"></label><button class="ra">Agregar recarga</button></div>
+  ${c.recargas.length?`<table><tr><th>Recarga</th><th>Créditos</th><th>Monto</th><th>Nota</th><th></th></tr>${c.recargas.map((x,i)=>`<tr><td>${pFd(x.fecha)}</td><td>+${x.cred}</td><td>${x.monto!=null&&x.monto!==''?pM(x.monto):''}</td><td>${esc(x.nota||'')}</td><td><button class="sec rx" data-i="${i}">🗑</button></td></tr>`).join('')}</table>`:''}
+  <details><summary>Consumo por fecha (${k.cons})</summary><table><tr><th>Fecha</th><th>Trámites</th></tr>${ds.map(d=>`<tr><td>${pFd(d)}</td><td>${k.byD[d]}</td></tr>`).join('')||'<tr><td colspan="2">Sin consumo desde la fecha base</td></tr>'}</table></details></div>`}).join('');
+ R.querySelectorAll('.card').forEach(el=>{const p=el.dataset.p;const up=f=>{const c=credCfg(p);f(c);credSave(p,c);renderCred()};
+  el.querySelector('.cs').onchange=e=>up(c=>c.saldo=parseFloat(e.target.value)||0);el.querySelector('.cf').onchange=e=>{if(e.target.value)up(c=>c.fecha=e.target.value)};el.querySelector('.ci').onchange=e=>up(c=>c.incl=e.target.checked);
+  el.querySelector('.ra').onclick=()=>{const n=parseFloat(el.querySelector('.rc').value);if(!n)return alert('Créditos inválidos');const m=el.querySelector('.rm').value;up(c=>c.recargas.push({fecha:el.querySelector('.rd').value||hoyISO(),cred:n,monto:m===''?null:parseFloat(m),nota:el.querySelector('.rn').value}))};
+  el.querySelectorAll('.rx').forEach(b=>b.onclick=()=>{if(confirm('¿Borrar recarga?'))up(c=>c.recargas.splice(+b.dataset.i,1))})})}
 function stLabel(e){if(e.pagado)return '💵 Pagado '+pFd(e.pagado.fecha)+(Math.abs(e.pagado.monto-e.pagado.montoCorte)>0.009?' ⚠️':'');if(e.aprobado)return '✅ Aprobado '+pFd(e.aprobado);if(e.enviado)return '📤 Enviado '+pFd(e.enviado);return '⏳ Pendiente'}
 function render(){const B=$('pcortes');B.innerHTML='';
  let A=$('padd');if(!A){A=document.createElement('div');A.id='padd';A.className='row';A.style.margin='8px 0';B.parentNode.insertBefore(A,B)}
@@ -247,26 +268,27 @@ function render(){const B=$('pcortes');B.innerHTML='';
  for(const c of PC){const e=estado(c);const el=document.createElement('div');el.className='card';let f='',rows='';
   for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}</td><td style="text-align:right">${l.c}</td></tr>`}
   const dif=e.pagado&&Math.abs(e.pagado.monto-c.monto)>0.009;
-  el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}</span><button class="gear" title="Teléfono">⚙️</button></h3>
+  el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}</span><span>${isPre(c.prov)?'<span class="tag" style="background:#dbeafe">Prepago</span> ':''}<label style="font-size:.75rem"><input type="checkbox" class="pre" ${isPre(c.prov)?'checked':''}> Prepago</label> <button class="gear" title="Teléfono">⚙️</button></span></h3>
   <div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}${ls('pv_agregados',[]).includes(c.prov)?'<button class="sec rq" style="font-size:.75rem;padding:4px 8px">Quitar</button>':''}</div>
   <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
   <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th></tr>${rows}</table></div>
-  <div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>
-  <div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
-  <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`;
+  ${isPre(c.prov)?'<div style="text-align:right"><span class="tag" style="background:#dbeafe">Prepago · consume créditos (no se paga)</span> '+c.lineas.reduce((a,l)=>a+(+l.c||0),0)+' trámites</div>':`<div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>`}
+  ${isPre(c.prov)?'':`<div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
+  <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`}`;
+  el.querySelector('.pre').onchange=ev=>{setPre(c.prov,ev.target.checked);render()};
   const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)setRango(c.prov,ri.value,rf.value);else alert('Rango inválido')};
   el.querySelector('.rr').onclick=()=>setRango(c.prov);
   const rq=el.querySelector('.rq');if(rq)rq.onclick=()=>{ss('pv_agregados',ls('pv_agregados',[]).filter(x=>x!=c.prov));rebuild();render()};
   el.querySelector('.gear').onclick=()=>{const p=ls('pv_telefonos',{});const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):',p[c.prov]||'');if(v===null)return;const n=v.replace(/\D/g,'');if(n)p[c.prov]=n;else delete p[c.prov];ss('pv_telefonos',p);render()};
-  el.querySelector('.b1').onclick=()=>{let t=ls('pv_telefonos',{})[c.prov];if(!t){const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):','');if(!v)return;t=v.replace(/\D/g,'');const p=ls('pv_telefonos',{});p[c.prov]=t;ss('pv_telefonos',p)}const s=estado(c);s.enviado=hoyISO();ss(stKey(c),s);abrirWA(t,c.texto);render()};
-  el.querySelector('.b2').onclick=()=>{const s=estado(c);s.aprobado=hoyISO();ss(stKey(c),s);render()};
-  el.querySelector('.b3').onclick=()=>abrirPago(c);
-  el.querySelector('.b4').onclick=()=>{if(confirm('¿Reiniciar estado de este corte? (el historial de pagos se conserva)')){localStorage.removeItem(stKey(c));render()}};
+  if(!isPre(c.prov))el.querySelector('.b1').onclick=()=>{let t=ls('pv_telefonos',{})[c.prov];if(!t){const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):','');if(!v)return;t=v.replace(/\D/g,'');const p=ls('pv_telefonos',{});p[c.prov]=t;ss('pv_telefonos',p)}const s=estado(c);s.enviado=hoyISO();ss(stKey(c),s);abrirWA(t,c.texto);render()};
+  if(!isPre(c.prov))el.querySelector('.b2').onclick=()=>{const s=estado(c);s.aprobado=hoyISO();ss(stKey(c),s);render()};
+  if(!isPre(c.prov))el.querySelector('.b3').onclick=()=>abrirPago(c);
+  if(!isPre(c.prov))el.querySelector('.b4').onclick=()=>{if(confirm('¿Reiniciar estado de este corte? (el historial de pagos se conserva)')){localStorage.removeItem(stKey(c));render()}};
   B.appendChild(el)}
- renderResumen()}
+ renderResumen();renderCred()}
 function renderResumen(){const R=$('presumen');if(!PC.length){R.hidden=true;return}R.hidden=false;let T=0,Pg=0;
- const rows=PC.map(c=>{const e=estado(c);T+=c.monto;const pg=e.pagado?e.pagado.monto:0;Pg+=pg;return `<tr><td>${esc(c.prov)}</td><td style="white-space:nowrap">${pFd(c.desde)}–${pFd(c.hasta)}${c.custom?' *':''}</td><td>${pM(c.monto)}</td><td>${stLabel(e)}</td><td>${e.pagado?pM(pg):''}</td><td class="${e.pagado&&Math.abs(pg-c.monto)>0.009?'bad':''}">${e.pagado?pM(pg-c.monto):''}</td></tr>`}).join('');
- R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Resumen proveedores</h2><div class="kpis"><div class="kpi"><small>Total a pagar a todos</small><b>${pM(T)}</b></div><div class="kpi"><small>Pagado</small><b>${pM(Pg)}</b></div><div class="kpi"><small>Pendiente</small><b>${pM(T-Pg)}</b></div><div class="kpi"><small>Proveedores</small><b>${PC.length}</b></div></div>
+ const NP=PC.filter(c=>!isPre(c.prov));const rows=NP.map(c=>{const e=estado(c);T+=c.monto;const pg=e.pagado?e.pagado.monto:0;Pg+=pg;return `<tr><td>${esc(c.prov)}</td><td style="white-space:nowrap">${pFd(c.desde)}–${pFd(c.hasta)}${c.custom?' *':''}</td><td>${pM(c.monto)}</td><td>${stLabel(e)}</td><td>${e.pagado?pM(pg):''}</td><td class="${e.pagado&&Math.abs(pg-c.monto)>0.009?'bad':''}">${e.pagado?pM(pg-c.monto):''}</td></tr>`}).join('');
+ R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Resumen proveedores</h2><div class="kpis"><div class="kpi"><small>Total a pagar a todos</small><b>${pM(T)}</b></div><div class="kpi"><small>Pagado</small><b>${pM(Pg)}</b></div><div class="kpi"><small>Pendiente</small><b>${pM(T-Pg)}</b></div><div class="kpi"><small>Proveedores</small><b>${NP.length}</b></div></div>${PC.length>NP.length?'<div style="font-size:.8rem">Excluidos (prepago): '+PC.filter(c=>isPre(c.prov)).map(c=>esc(c.prov)).join(', ')+'</div>':''}
  <div style="overflow-x:auto"><table><tr><th>Proveedor</th><th>Rango</th><th>Monto a pagar</th><th>Estado</th><th>Pagado</th><th>Diferencia</th></tr>${rows}<tr><th>TOTAL</th><th></th><th>${pM(T)}</th><th></th><th>${pM(Pg)}</th><th></th></tr></table></div>`}
 function abrirPago(c){PCUR=c;PIMG=null;$('pptit').textContent='Registrar pago · '+c.prov;$('ppmonto').value=c.monto;$('ppfecha').value=hoyISO();$('ppnota').value='';$('ppimg').value='';$('ppprev').style.display='none';$('ppago').hidden=false}
 $('ppimg').onchange=async()=>{const f=$('ppimg').files[0];if(!f)return;try{PIMG=await compress(f);$('ppprev').src=PIMG;$('ppprev').style.display='block'}catch(e){alert(e.message)}};
@@ -289,9 +311,9 @@ async function renderHist(){const H=$('phist');H.hidden=false;let all=[];try{all
  H.querySelectorAll('.hv').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block">`:'<div class="panel">Este pago no tiene comprobante</div>')});
  H.querySelectorAll('.hc').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(`<div class="panel" style="max-width:600px"><pre style="max-height:none">${esc(p.snapshot.texto)}</pre><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}${p.nota?' · '+esc(p.nota):''}</p></div>`)});
  $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_'))est[k]=localStorage.getItem(k)}
-  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:8,exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
+  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:10,prepago:prepagoMap(),credito:ls('pv_credito',{}),exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
  $('phimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pagos))throw new Error('Archivo no válido');let n=0;for(const p of j.pagos){if(p&&p.id){await pagoPut(p);n++}}
-  if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
+  if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);if(j.prepago)ss('pv_prepago',j.prepago);if(j.credito)ss('pv_credito',j.credito);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
 $('phistBtn').onclick=()=>{const H=$('phist');if(!H.hidden){H.hidden=true;return}renderHist().then(()=>H.scrollIntoView({behavior:'smooth'}))};
 $('pcargar').onclick=cargar;
 // pestañas
@@ -303,7 +325,7 @@ ROWS=ls('pv_rows',[]);if(ROWS.length)rebuild();else PC=ls('pv_ultimos',[]);rende
 <script>
 /*XCORE-START*/
 // Equivalencias por defecto: clave 'C:<trámite cliente>' / 'P:<trámite proveedor>' -> {g:grupo, i:interno}
-const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas'},'P:Actas':{g:'Actas'},'P:Cadenas':{g:''},
+const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas, Cadenas / Actas por datos'},'P:Actas':{g:'Actas'},'P:Cadenas':{g:'Cadenas / Actas por datos'},
 'C:RFC económico/Express':{g:'RFC Clon'},'C:RFC con ID/CIF':{g:'RFC Clon'},'C:RFC con domicilio fiscal':{g:'RFC Clon'},'P:Clon':{g:'RFC Clon'},
 'P:RFC con domicilio':{g:''},'P:IDCIF':{g:''},
 'C:RFC normal':{g:'RFC verificable'},'P:RFC verificable':{g:'RFC verificable'},
@@ -314,8 +336,10 @@ const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas'},'P:Actas':{g:'A
 'C:CFE/NSS/No IMSS/CURP':{g:'',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''}};
 const XKNOWN=['C:Actas','C:Acta por datos','C:Semanas cotizadas / vigencias','C:CFE/NSS/No IMSS/CURP','C:RFC económico/Express','C:RFC con domicilio fiscal','C:RFC con ID/CIF','C:RFC normal','C:RFC alterno','C:Antecedentes penales','C:Fecha de retiro','C:Citas SAT','C:Reseteo','C:Otros',
 'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web'];
+if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<2){const E=ls('x_eq',{});delete E['C:Acta por datos'];delete E['P:Cadenas'];ss('x_eq',E);ss('x_eq_v',2)}
 function xEq(k,E){return (E&&E[k])||XDEF[k]||{g:''}}
-function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e=xEq(k,E);const nm=k.slice(2);
+function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e0=xEq(k,E);const gs=String(e0.g||'').split(',').map(x=>x.trim()).filter(Boolean);for(const g1 of (gs.length?gs:[''])){const e={g:g1,i:e0.i};add1(k,side,who,c,e)}};
+ const add1=(k,side,who,c,e)=>{const nm=k.slice(2);
  const gk=e.i?'INT|'+k:(e.g?'G|'+e.g:'SE|'+k);const g=G[gk]=G[gk]||{g:e.g||nm,interno:!!e.i,sin:!e.i&&!e.g,comprado:0,entregado:0,prov:{},cli:{},tipos:{}};
  g.tipos[k]=1;if(side=='P'){g.comprado+=c;g.prov[who]=(g.prov[who]||0)+c}else{g.entregado+=c;g.cli[who]=(g.cli[who]||0)+c}};
  for(const r of crows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)add('C:'+(i.otros?'Otros':i.tramite),'C',(r.cliente||'(sin cliente)').trim()+' · '+(r.gestor||'SIN GESTOR'),i.cantidad)}
@@ -339,8 +363,8 @@ function render(){if(!CR)return;const E=ls('x_eq',{});const L=xBuild(CR,PR,$('xd
  if(!L.length)h+='<tr><td colspan="5">Sin datos en el rango</td></tr>';$('xtab').innerHTML=h;
  document.querySelectorAll('.xr').forEach(r=>r.onclick=()=>{const d=$('xd'+r.dataset.i);d.hidden=!d.hidden;r.cells[0].innerHTML=r.cells[0].innerHTML.replace(/^[▸▾]/,d.hidden?'▸':'▾')})}
 function renderEq(){const E=ls('x_eq',{});const ks=new Set(XKNOWN);if(CR)for(const r of CR)for(const i of r.items)ks.add('C:'+(i.otros?'Otros':i.tramite));if(PR)for(const r of PR)for(const i of r.items)ks.add('P:'+i.t);
- const grupos=[...new Set([...ks].map(k=>xEq(k,E).g).filter(Boolean))].sort();
- let h=`<h3 style="margin-top:0">Equivalencias</h3><p style="font-size:.8rem;color:#475569">Los trámites con el mismo <b>Grupo</b> se comparan juntos (comprado vs entregado). Deja el grupo vacío para "Sin equivalencia". Marca <b>Interno</b> si no se compra (se excluye de la diferencia).</p><datalist id="xgl">${grupos.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+ const grupos=[...new Set([...ks].flatMap(k=>String(xEq(k,E).g||'').split(',').map(x=>x.trim())).filter(Boolean))].sort();
+ let h=`<h3 style="margin-top:0">Equivalencias</h3><p style="font-size:.8rem;color:#475569">Los trámites con el mismo <b>Grupo</b> se comparan juntos (comprado vs entregado). Un trámite puede ir en varios grupos separados por coma. Deja el grupo vacío para "Sin equivalencia". Marca <b>Interno</b> si no se compra (se excluye de la diferencia).</p><datalist id="xgl">${grupos.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
  <div style="overflow-x:auto"><table><tr><th>Hoja</th><th>Trámite</th><th>Grupo</th><th>Interno (no se compra)</th></tr>`;
  for(const k of [...ks].sort((a,b)=>a[0]==b[0]?0:a[0]=='C'?-1:1)){const e=xEq(k,E);h+=`<tr><td>${k[0]=='C'?'Clientes':'Proveedores'}</td><td>${esc(k.slice(2))}</td><td><input list="xgl" class="xg" data-k="${esc(k)}" value="${esc(e.g||'')}"></td><td><input type="checkbox" class="xi" data-k="${esc(k)}" ${e.i?'checked':''}></td></tr>`}
  h+='</table></div><div class="row" style="margin-top:8px"><button id="xeqOk">Guardar y recalcular</button><button class="sec" id="xeqRst">Restablecer por defecto</button></div>';$('xeq').innerHTML=h;
