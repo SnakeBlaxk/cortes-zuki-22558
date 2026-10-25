@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v7</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v8</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button></nav>
 <main>
 <div id="secC">
@@ -184,7 +184,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v)p[i.dataset.id]=v});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v7</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v8</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
 <script>
 /*PCORE-START*/
@@ -203,9 +203,11 @@ function pM(n){return '$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDi
 function pTexto(c){const L=['*CORTE PROVEEDOR '+c.prov+'*','Del '+pFd(c.desde)+' al '+pFd(c.hasta),''];let f='';
  for(const l of c.lineas){if(l.fecha!=f){f=l.fecha;L.push('📅 '+pFd(f))}L.push('  • '+l.t+': '+l.c)}
  L.push('','*MONTO A PAGAR: '+pM(c.monto)+'*','','Por favor confirma si el corte está correcto ✅');return L.join('\n')}
+function pOne(rows,p,d,h){const c={prov:p,desde:d,hasta:h,lineas:[],monto:0,dif:0};for(const r of rows){if(r.prov!=p||r.fecha<d||r.fecha>h)continue;c.lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c})));c.monto+=r.total;c.dif+=r.total-r.sub}
+ c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}
 /*PCORE-END*/
 (function(){
-const $=id=>document.getElementById(id);let PC=[],PCUR=null,PIMG=null;
+const $=id=>document.getElementById(id);let PC=[],ROWS=[],PCUR=null,PIMG=null;
 const P_URL='https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid='+P_GID;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pmsg=t=>$('pmsg').textContent=t;
@@ -221,19 +223,32 @@ function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMont
 const ld=ls('pv_rango',null);if(ld){$('pdesde').value=ld[0];$('phasta').value=ld[1]}else{$('pdesde').value=$('desde').value;$('phasta').value=$('hasta').value}
 async function cargar(){const d=$('pdesde').value,h=$('phasta').value;if(!d||!h||d>h)return pmsg('Rango de fechas inválido');ss('pv_rango',[d,h]);pmsg('Cargando…');
  try{const r=await fetch(P_URL+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!/PROVEEDOR/i.test(t.slice(0,500)))throw new Error('Respuesta inesperada (¿hoja compartida?)');
-  PC=pBuild(pParse(t),d,h);ss('pv_ultimos',PC);pmsg(PC.length+' proveedores con movimientos del '+pFd(d)+' al '+pFd(h))}catch(e){pmsg('Error al cargar: '+e.message)}render()}
+  ROWS=pParse(t);try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+')')}catch(e){pmsg('Error al cargar: '+e.message)}render()}
+function gen(){return [$('pdesde').value,$('phasta').value]}
+function rebuild(){const[d,h]=gen();const cr=ls('pv_rangos',{}),ad=ls('pv_agregados',[]);const S=new Set();
+ for(const r of ROWS)if(r.fecha>=d&&r.fecha<=h)S.add(r.prov);for(const p in cr)if(ROWS.some(r=>r.prov==p&&r.fecha>=cr[p][0]&&r.fecha<=cr[p][1]))S.add(p);for(const p of ad)S.add(p);
+ PC=[...S].sort((a,b)=>a.localeCompare(b)).map(p=>{const x=cr[p];const c=pOne(ROWS,p,x?x[0]:d,x?x[1]:h);c.custom=!!x;return c});ss('pv_ultimos',PC)}
+function setRango(p,d,h){const cr=ls('pv_rangos',{});const[gd,gh]=gen();if(!d||!h||(d==gd&&h==gh))delete cr[p];else cr[p]=[d,h];ss('pv_rangos',cr);rebuild();render()}
 function estado(c){return ls(stKey(c),{})}
 function stLabel(e){if(e.pagado)return '💵 Pagado '+pFd(e.pagado.fecha)+(Math.abs(e.pagado.monto-e.pagado.montoCorte)>0.009?' ⚠️':'');if(e.aprobado)return '✅ Aprobado '+pFd(e.aprobado);if(e.enviado)return '📤 Enviado '+pFd(e.enviado);return '⏳ Pendiente'}
-function render(){const B=$('pcortes');B.innerHTML='';const ph=ls('pv_telefonos',{});
+function render(){const B=$('pcortes');B.innerHTML='';
+ let A=$('padd');if(!A){A=document.createElement('div');A.id='padd';A.className='row';A.style.margin='8px 0';B.parentNode.insertBefore(A,B)}
+ const all=[...new Set(ROWS.map(r=>r.prov))].sort((a,b)=>a.localeCompare(b)).filter(p=>!PC.some(c=>c.prov==p));
+ A.innerHTML=ROWS.length?`<label style="flex:1">Agregar proveedor<select id="paddSel"><option value="">— elegir —</option>${all.map(p=>`<option>${esc(p)}</option>`).join('')}</select></label>`:'';
+ if(ROWS.length)$('paddSel').onchange=e=>{const p=e.target.value;if(!p)return;const ad=ls('pv_agregados',[]);if(!ad.includes(p))ad.push(p);ss('pv_agregados',ad);rebuild();render()};const ph=ls('pv_telefonos',{});
  for(const c of PC){const e=estado(c);const el=document.createElement('div');el.className='card';let f='',rows='';
   for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}</td><td style="text-align:right">${l.c}</td></tr>`}
   const dif=e.pagado&&Math.abs(e.pagado.monto-c.monto)>0.009;
-  el.innerHTML=`<h3><span>${esc(c.prov)}</span><button class="gear" title="Teléfono">⚙️</button></h3>
+  el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}</span><button class="gear" title="Teléfono">⚙️</button></h3>
+  <div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}${ls('pv_agregados',[]).includes(c.prov)?'<button class="sec rq" style="font-size:.75rem;padding:4px 8px">Quitar</button>':''}</div>
   <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
   <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th></tr>${rows}</table></div>
   <div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>
   <div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
   <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`;
+  const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)setRango(c.prov,ri.value,rf.value);else alert('Rango inválido')};
+  el.querySelector('.rr').onclick=()=>setRango(c.prov);
+  const rq=el.querySelector('.rq');if(rq)rq.onclick=()=>{ss('pv_agregados',ls('pv_agregados',[]).filter(x=>x!=c.prov));rebuild();render()};
   el.querySelector('.gear').onclick=()=>{const p=ls('pv_telefonos',{});const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):',p[c.prov]||'');if(v===null)return;const n=v.replace(/\D/g,'');if(n)p[c.prov]=n;else delete p[c.prov];ss('pv_telefonos',p);render()};
   el.querySelector('.b1').onclick=()=>{let t=ls('pv_telefonos',{})[c.prov];if(!t){const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):','');if(!v)return;t=v.replace(/\D/g,'');const p=ls('pv_telefonos',{});p[c.prov]=t;ss('pv_telefonos',p)}const s=estado(c);s.enviado=hoyISO();ss(stKey(c),s);abrirWA(t,c.texto);render()};
   el.querySelector('.b2').onclick=()=>{const s=estado(c);s.aprobado=hoyISO();ss(stKey(c),s);render()};
@@ -242,9 +257,9 @@ function render(){const B=$('pcortes');B.innerHTML='';const ph=ls('pv_telefonos'
   B.appendChild(el)}
  renderResumen()}
 function renderResumen(){const R=$('presumen');if(!PC.length){R.hidden=true;return}R.hidden=false;let T=0,Pg=0;
- const rows=PC.map(c=>{const e=estado(c);T+=c.monto;const pg=e.pagado?e.pagado.monto:0;Pg+=pg;return `<tr><td>${esc(c.prov)}</td><td>${pM(c.monto)}</td><td>${stLabel(e)}</td><td>${e.pagado?pM(pg):''}</td><td class="${e.pagado&&Math.abs(pg-c.monto)>0.009?'bad':''}">${e.pagado?pM(pg-c.monto):''}</td></tr>`}).join('');
+ const rows=PC.map(c=>{const e=estado(c);T+=c.monto;const pg=e.pagado?e.pagado.monto:0;Pg+=pg;return `<tr><td>${esc(c.prov)}</td><td style="white-space:nowrap">${pFd(c.desde)}–${pFd(c.hasta)}${c.custom?' *':''}</td><td>${pM(c.monto)}</td><td>${stLabel(e)}</td><td>${e.pagado?pM(pg):''}</td><td class="${e.pagado&&Math.abs(pg-c.monto)>0.009?'bad':''}">${e.pagado?pM(pg-c.monto):''}</td></tr>`}).join('');
  R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Resumen proveedores</h2><div class="kpis"><div class="kpi"><small>Total a pagar a todos</small><b>${pM(T)}</b></div><div class="kpi"><small>Pagado</small><b>${pM(Pg)}</b></div><div class="kpi"><small>Pendiente</small><b>${pM(T-Pg)}</b></div><div class="kpi"><small>Proveedores</small><b>${PC.length}</b></div></div>
- <div style="overflow-x:auto"><table><tr><th>Proveedor</th><th>Monto a pagar</th><th>Estado</th><th>Pagado</th><th>Diferencia</th></tr>${rows}<tr><th>TOTAL</th><th>${pM(T)}</th><th></th><th>${pM(Pg)}</th><th></th></tr></table></div>`}
+ <div style="overflow-x:auto"><table><tr><th>Proveedor</th><th>Rango</th><th>Monto a pagar</th><th>Estado</th><th>Pagado</th><th>Diferencia</th></tr>${rows}<tr><th>TOTAL</th><th></th><th>${pM(T)}</th><th></th><th>${pM(Pg)}</th><th></th></tr></table></div>`}
 function abrirPago(c){PCUR=c;PIMG=null;$('pptit').textContent='Registrar pago · '+c.prov;$('ppmonto').value=c.monto;$('ppfecha').value=hoyISO();$('ppnota').value='';$('ppimg').value='';$('ppprev').style.display='none';$('ppago').hidden=false}
 $('ppimg').onchange=async()=>{const f=$('ppimg').files[0];if(!f)return;try{PIMG=await compress(f);$('ppprev').src=PIMG;$('ppprev').style.display='block'}catch(e){alert(e.message)}};
 $('ppcan').onclick=()=>{$('ppago').hidden=true};
@@ -266,7 +281,7 @@ async function renderHist(){const H=$('phist');H.hidden=false;let all=[];try{all
  H.querySelectorAll('.hv').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block">`:'<div class="panel">Este pago no tiene comprobante</div>')});
  H.querySelectorAll('.hc').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(`<div class="panel" style="max-width:600px"><pre style="max-height:none">${esc(p.snapshot.texto)}</pre><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}${p.nota?' · '+esc(p.nota):''}</p></div>`)});
  $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_'))est[k]=localStorage.getItem(k)}
-  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:7,exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
+  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:8,exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
  $('phimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pagos))throw new Error('Archivo no válido');let n=0;for(const p of j.pagos){if(p&&p.id){await pagoPut(p);n++}}
   if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
 $('phistBtn').onclick=()=>{const H=$('phist');if(!H.hidden){H.hidden=true;return}renderHist().then(()=>H.scrollIntoView({behavior:'smooth'}))};
@@ -274,7 +289,7 @@ $('pcargar').onclick=cargar;
 // pestañas
 let loaded=false;function tab(t){ss('tab',t);$('secC').hidden=t!='c';$('secP').hidden=t!='p';$('tabC').classList.toggle('on',t=='c');$('tabP').classList.toggle('on',t=='p');if(t=='p'&&!loaded){loaded=true;cargar()}}
 $('tabC').onclick=()=>tab('c');$('tabP').onclick=()=>tab('p');
-PC=ls('pv_ultimos',[]);render();tab(ls('tab','c'));
+ROWS=ls('pv_rows',[]);if(ROWS.length)rebuild();else PC=ls('pv_ultimos',[]);render();tab(ls('tab','c'));
 })();
 </script>
 </body></html>
