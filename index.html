@@ -19,10 +19,13 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 #cola{position:sticky;top:0;z-index:10;background:#fef9c3;border:1px solid #facc15;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sent{font-size:.75rem;color:#15803d;font-weight:600}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.kpi{background:#f8fafc;border-radius:8px;padding:8px}.kpi small{display:block;color:#475569}.kpi b{font-size:1.05rem}
 .card.revisar{background:#ffedd5;border:3px solid #ea580c;box-shadow:0 0 0 3px #fdba74}.badge{background:#ea580c;color:#fff;font-weight:700;border-radius:8px;padding:4px 8px;font-size:.85rem}.otl{background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:6px;font-size:.85rem}.sp{color:#dc2626;font-weight:800}#revisar{background:#ffedd5;border:3px solid #ea580c}.qrev{background:#ea580c;color:#fff;padding:2px 6px;border-radius:6px;font-weight:700}
+.tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales</h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v7</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button></nav>
 <main>
+<div id="secC">
 <div class="panel"><div class="row">
 <label>Desde<input type="date" id="desde"></label><label>Hasta<input type="date" id="hasta"></label>
 <button id="cargar">Cargar datos</button><button class="sec" id="todo">Enviar todo a Cortes</button><button class="wa" id="todos">Enviar a todos</button>
@@ -32,6 +35,25 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 <div class="panel"><h2 style="margin-top:0;font-size:1.1rem">Diferencias</h2>
 <div style="overflow-x:auto"><table id="dif"></table></div>
 <p><button class="sec" id="csv">Exportar pagos (CSV)</button></p></div>
+</div>
+<div id="secP" hidden>
+<div class="panel"><div class="row">
+<label>Desde<input type="date" id="pdesde"></label><label>Hasta<input type="date" id="phasta"></label>
+<button id="pcargar">Cargar datos</button><button class="sec" id="phistBtn">Historial de pagos</button>
+</div><div id="pmsg" style="font-size:.85rem;color:#475569"></div></div>
+<div id="presumen" class="panel" hidden></div>
+<div id="pcortes" class="grid"></div>
+<div id="phist" class="panel" hidden></div>
+</div>
+<div id="pmodal" hidden style="position:fixed;inset:0;background:#000d;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px"><button id="pmclose" style="position:absolute;top:10px;right:10px">✕ Cerrar</button><div id="pmbody" style="max-width:100%;max-height:92vh;overflow:auto"></div></div>
+<div id="ppago" hidden style="position:fixed;inset:0;background:#0008;z-index:40;display:flex;align-items:center;justify-content:center;padding:10px"><div class="panel" style="width:100%;max-width:420px;margin:0">
+<h3 style="margin-top:0" id="pptit">Registrar pago</h3>
+<label>Monto pagado<input type="number" step="0.01" id="ppmonto"></label>
+<label>Fecha de pago<input type="date" id="ppfecha"></label>
+<label>Nota<input id="ppnota" placeholder="Ej. transferencia BBVA"></label>
+<label>Comprobante (imagen)<input type="file" accept="image/*" id="ppimg"></label>
+<img id="ppprev" style="max-width:100%;max-height:200px;display:none;margin-top:6px">
+<div class="row" style="margin-top:10px"><button id="ppok">Guardar pago</button><button class="sec" id="ppcan">Cancelar</button></div></div></div>
 </main>
 <script>
 /*CORE-START*/
@@ -90,7 +112,7 @@ function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR 
 if(typeof module!='undefined')module.exports={parseRows,buildCortes};
 /*CORE-END*/
 if(typeof document!='undefined'){
-const ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+var ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 let CORTES=[];const msg=t=>document.getElementById('msg').textContent=t;
 const today=new Date(),iso=d=>d.toISOString().slice(0,10);
 document.getElementById('hasta').value=ls('hasta',iso(today));document.getElementById('desde').value=ls('desde',iso(new Date(today-6*864e5)));
@@ -164,4 +186,95 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
 </script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v7</footer>
 <script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
+<script>
+/*PCORE-START*/
+const P_GID='1456229317';
+const PLAB={'ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','RFC/VER':'RFC verificable','RFC/ ORG':'RFC original','RFC/DOM':'RFC con domicilio','IDCIF':'IDCIF','PENAL':'Antecedentes penales','SEM/VIG':'Semanas / vigencias','CITAS':'Citas SAT','RESET':'Reseteo / web'};
+function pParse(text){const R=parseCSV(text);const H=R[0].map(h=>String(h||'').trim());const U=H.map(norm);
+ const iP=U.indexOf('PROVEEDOR'),iT=U.indexOf('TOTAL'),iF=U.indexOf('FECHA');const Q=[];
+ for(let j=iP+1;j<iT;j++){if(!H[j]||/^(PRECIO|SUBTOTAL)/.test(U[j]))continue;let s=-1;for(let k=j+1;k<iT&&k<=j+2;k++)if(/^SUBTOTAL/.test(U[k]))s=k;Q.push({j,s,lab:PLAB[H[j]]||H[j]})}
+ const out=[];for(const r of R.slice(1)){const f=parseFecha(r[iF]);const p=String(r[iP]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!f||!p)continue;
+  const it=[];let sub=0;for(const q of Q){const c=num(r[q.j]),st=q.s>=0?num(r[q.s]):0;sub+=st;if(c||st)it.push({t:q.lab,c,st})}
+  const tot=num(r[iT]);if(!it.length&&!tot)continue;out.push({fecha:f,prov:p,items:it,total:tot,sub})}return out}
+function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
+ return Object.values(G).map(c=>{c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}).sort((a,b)=>a.prov.localeCompare(b.prov))}
+function pFd(s){const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
+function pM(n){return '$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function pTexto(c){const L=['*CORTE PROVEEDOR '+c.prov+'*','Del '+pFd(c.desde)+' al '+pFd(c.hasta),''];let f='';
+ for(const l of c.lineas){if(l.fecha!=f){f=l.fecha;L.push('📅 '+pFd(f))}L.push('  • '+l.t+': '+l.c)}
+ L.push('','*MONTO A PAGAR: '+pM(c.monto)+'*','','Por favor confirma si el corte está correcto ✅');return L.join('\n')}
+/*PCORE-END*/
+(function(){
+const $=id=>document.getElementById(id);let PC=[],PCUR=null,PIMG=null;
+const P_URL='https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid='+P_GID;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pmsg=t=>$('pmsg').textContent=t;
+const stKey=c=>'pv_estado:'+c.prov+':'+c.desde+':'+c.hasta;
+// IndexedDB
+function db(){return new Promise((ok,ko)=>{const r=indexedDB.open('cortes_proveedores',1);r.onupgradeneeded=()=>r.result.createObjectStore('pagos',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)})}
+async function tx(mode,fn){const d=await db();return new Promise((ok,ko)=>{const t=d.transaction('pagos',mode);const s=t.objectStore('pagos');const r=fn(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})}
+const pagosAll=()=>tx('readonly',s=>s.getAll()).then(a=>(a||[]).sort((x,y)=>(y.fechaPago+y.id).localeCompare(x.fechaPago+x.id)));
+const pagoPut=p=>tx('readwrite',s=>s.put(p));
+function compress(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1280;let w=im.width,h=im.height;const k=Math.min(1,M/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);URL.revokeObjectURL(u);ok(cv.toDataURL('image/jpeg',0.7))};im.onerror=()=>ko(new Error('Imagen no válida'));im.src=u})}
+function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+// fechas por defecto: semana anterior (sáb-vie) como en clientes si existen
+const ld=ls('pv_rango',null);if(ld){$('pdesde').value=ld[0];$('phasta').value=ld[1]}else{$('pdesde').value=$('desde').value;$('phasta').value=$('hasta').value}
+async function cargar(){const d=$('pdesde').value,h=$('phasta').value;if(!d||!h||d>h)return pmsg('Rango de fechas inválido');ss('pv_rango',[d,h]);pmsg('Cargando…');
+ try{const r=await fetch(P_URL+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!/PROVEEDOR/i.test(t.slice(0,500)))throw new Error('Respuesta inesperada (¿hoja compartida?)');
+  PC=pBuild(pParse(t),d,h);ss('pv_ultimos',PC);pmsg(PC.length+' proveedores con movimientos del '+pFd(d)+' al '+pFd(h))}catch(e){pmsg('Error al cargar: '+e.message)}render()}
+function estado(c){return ls(stKey(c),{})}
+function stLabel(e){if(e.pagado)return '💵 Pagado '+pFd(e.pagado.fecha)+(Math.abs(e.pagado.monto-e.pagado.montoCorte)>0.009?' ⚠️':'');if(e.aprobado)return '✅ Aprobado '+pFd(e.aprobado);if(e.enviado)return '📤 Enviado '+pFd(e.enviado);return '⏳ Pendiente'}
+function render(){const B=$('pcortes');B.innerHTML='';const ph=ls('pv_telefonos',{});
+ for(const c of PC){const e=estado(c);const el=document.createElement('div');el.className='card';let f='',rows='';
+  for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}</td><td style="text-align:right">${l.c}</td></tr>`}
+  const dif=e.pagado&&Math.abs(e.pagado.monto-c.monto)>0.009;
+  el.innerHTML=`<h3><span>${esc(c.prov)}</span><button class="gear" title="Teléfono">⚙️</button></h3>
+  <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
+  <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th></tr>${rows}</table></div>
+  <div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>
+  <div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
+  <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`;
+  el.querySelector('.gear').onclick=()=>{const p=ls('pv_telefonos',{});const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):',p[c.prov]||'');if(v===null)return;const n=v.replace(/\D/g,'');if(n)p[c.prov]=n;else delete p[c.prov];ss('pv_telefonos',p);render()};
+  el.querySelector('.b1').onclick=()=>{let t=ls('pv_telefonos',{})[c.prov];if(!t){const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):','');if(!v)return;t=v.replace(/\D/g,'');const p=ls('pv_telefonos',{});p[c.prov]=t;ss('pv_telefonos',p)}const s=estado(c);s.enviado=hoyISO();ss(stKey(c),s);abrirWA(t,c.texto);render()};
+  el.querySelector('.b2').onclick=()=>{const s=estado(c);s.aprobado=hoyISO();ss(stKey(c),s);render()};
+  el.querySelector('.b3').onclick=()=>abrirPago(c);
+  el.querySelector('.b4').onclick=()=>{if(confirm('¿Reiniciar estado de este corte? (el historial de pagos se conserva)')){localStorage.removeItem(stKey(c));render()}};
+  B.appendChild(el)}
+ renderResumen()}
+function renderResumen(){const R=$('presumen');if(!PC.length){R.hidden=true;return}R.hidden=false;let T=0,Pg=0;
+ const rows=PC.map(c=>{const e=estado(c);T+=c.monto;const pg=e.pagado?e.pagado.monto:0;Pg+=pg;return `<tr><td>${esc(c.prov)}</td><td>${pM(c.monto)}</td><td>${stLabel(e)}</td><td>${e.pagado?pM(pg):''}</td><td class="${e.pagado&&Math.abs(pg-c.monto)>0.009?'bad':''}">${e.pagado?pM(pg-c.monto):''}</td></tr>`}).join('');
+ R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Resumen proveedores</h2><div class="kpis"><div class="kpi"><small>Total a pagar a todos</small><b>${pM(T)}</b></div><div class="kpi"><small>Pagado</small><b>${pM(Pg)}</b></div><div class="kpi"><small>Pendiente</small><b>${pM(T-Pg)}</b></div><div class="kpi"><small>Proveedores</small><b>${PC.length}</b></div></div>
+ <div style="overflow-x:auto"><table><tr><th>Proveedor</th><th>Monto a pagar</th><th>Estado</th><th>Pagado</th><th>Diferencia</th></tr>${rows}<tr><th>TOTAL</th><th>${pM(T)}</th><th></th><th>${pM(Pg)}</th><th></th></tr></table></div>`}
+function abrirPago(c){PCUR=c;PIMG=null;$('pptit').textContent='Registrar pago · '+c.prov;$('ppmonto').value=c.monto;$('ppfecha').value=hoyISO();$('ppnota').value='';$('ppimg').value='';$('ppprev').style.display='none';$('ppago').hidden=false}
+$('ppimg').onchange=async()=>{const f=$('ppimg').files[0];if(!f)return;try{PIMG=await compress(f);$('ppprev').src=PIMG;$('ppprev').style.display='block'}catch(e){alert(e.message)}};
+$('ppcan').onclick=()=>{$('ppago').hidden=true};
+$('ppok').onclick=async()=>{const c=PCUR;const m=parseFloat($('ppmonto').value);if(isNaN(m))return alert('Monto inválido');const f=$('ppfecha').value||hoyISO();
+ if(!PIMG&&!confirm('No adjuntaste comprobante. ¿Guardar de todos modos?'))return;
+ const p={id:c.prov+':'+c.desde+':'+c.hasta+':'+Date.now(),prov:c.prov,desde:c.desde,hasta:c.hasta,fechaPago:f,monto:m,montoCorte:c.monto,nota:$('ppnota').value,img:PIMG,snapshot:{texto:c.texto,lineas:c.lineas,monto:c.monto},registrado:new Date().toISOString()};
+ try{await pagoPut(p)}catch(e){return alert('No se pudo guardar: '+e.message)}
+ const s=estado(c);s.pagado={fecha:f,monto:m,montoCorte:c.monto,id:p.id};ss(stKey(c),s);$('ppago').hidden=true;render();if(!$('phist').hidden)renderHist();
+ if(Math.abs(m-c.monto)>0.009)alert('Atención: el monto pagado ('+pM(m)+') difiere del corte ('+pM(c.monto)+'). Diferencia '+pM(m-c.monto))};
+function modal(html){$('pmbody').innerHTML=html;$('pmodal').hidden=false}
+$('pmclose').onclick=()=>{$('pmodal').hidden=true};
+async function renderHist(){const H=$('phist');H.hidden=false;let all=[];try{all=await pagosAll()}catch(e){H.textContent='Error IndexedDB: '+e.message;return}
+ const q=(ls('pv_hfiltro','')||'').toUpperCase();const L=all.filter(p=>!q||p.prov.includes(q));
+ H.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">Historial de pagos (${all.length})</h2>
+ <div class="row" style="margin-bottom:8px"><label style="flex:1">Buscar proveedor<input id="phq" value="${esc(q)}"></label><button class="sec" id="phexp">Exportar respaldo (JSON)</button><label class="sec" style="background:#e2e8f0;padding:8px 12px;border-radius:8px;cursor:pointer">Importar respaldo<input type="file" accept="application/json,.json" id="phimp" hidden></label></div>
+ <div style="overflow-x:auto"><table><tr><th>Proveedor</th><th>Rango</th><th>Fecha pago</th><th>Monto</th><th>Monto corte</th><th>Diferencia</th><th></th></tr>${L.map(p=>{const d=p.monto-p.montoCorte;return `<tr><td>${esc(p.prov)}</td><td>${pFd(p.desde)}–${pFd(p.hasta)}</td><td>${pFd(p.fechaPago)}</td><td>${pM(p.monto)}</td><td>${pM(p.montoCorte)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${pM(d)}</td><td style="white-space:nowrap"><button class="sec hv" data-id="${esc(p.id)}">Ver comprobante</button> <button class="sec hc" data-id="${esc(p.id)}">Ver corte</button></td></tr>${p.nota?`<tr><td colspan="7" style="font-size:.8rem;color:#475569">Nota: ${esc(p.nota)}</td></tr>`:''}`}).join('')||'<tr><td colspan="7">Sin pagos registrados</td></tr>'}</table></div>`;
+ const qi=$('phq');qi.oninput=()=>{ss('pv_hfiltro',qi.value);clearTimeout(qi._t);qi._t=setTimeout(()=>{renderHist().then(()=>{const n=$('phq');n.focus();n.setSelectionRange(n.value.length,n.value.length)})},300)};
+ const byId=id=>all.find(p=>p.id==id);
+ H.querySelectorAll('.hv').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block">`:'<div class="panel">Este pago no tiene comprobante</div>')});
+ H.querySelectorAll('.hc').forEach(b=>b.onclick=()=>{const p=byId(b.dataset.id);modal(`<div class="panel" style="max-width:600px"><pre style="max-height:none">${esc(p.snapshot.texto)}</pre><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}${p.nota?' · '+esc(p.nota):''}</p></div>`)});
+ $('phexp').onclick=async()=>{const all2=await pagosAll();const est={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('pv_'))est[k]=localStorage.getItem(k)}
+  const b=new Blob([JSON.stringify({app:'cortes-proveedores',version:7,exportado:new Date().toISOString(),pagos:all2,localStorage:est})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='respaldo_pagos_proveedores_'+hoyISO()+'.json';document.body.appendChild(a);a.click();a.remove()};
+ $('phimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pagos))throw new Error('Archivo no válido');let n=0;for(const p of j.pagos){if(p&&p.id){await pagoPut(p);n++}}
+  if(j.localStorage)for(const k in j.localStorage)if(k.startsWith('pv_')&&localStorage.getItem(k)==null)localStorage.setItem(k,j.localStorage[k]);alert(n+' pagos restaurados');render();renderHist()}catch(err){alert('Error al importar: '+err.message)}}}
+$('phistBtn').onclick=()=>{const H=$('phist');if(!H.hidden){H.hidden=true;return}renderHist().then(()=>H.scrollIntoView({behavior:'smooth'}))};
+$('pcargar').onclick=cargar;
+// pestañas
+let loaded=false;function tab(t){ss('tab',t);$('secC').hidden=t!='c';$('secP').hidden=t!='p';$('tabC').classList.toggle('on',t=='c');$('tabP').classList.toggle('on',t=='p');if(t=='p'&&!loaded){loaded=true;cargar()}}
+$('tabC').onclick=()=>tab('c');$('tabP').onclick=()=>tab('p');
+PC=ls('pv_ultimos',[]);render();tab(ls('tab','c'));
+})();
+</script>
 </body></html>
