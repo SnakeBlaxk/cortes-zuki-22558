@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v17</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="b">Business directo</option><option value="n">WhatsApp normal</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v18</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -257,7 +257,7 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
  h+=fila('<b>TOTAL</b>',tot,'font-weight:700')+'</table></div>';R.innerHTML=h}
 // ---- Cola "Enviar a todos" ----
 let COLA=null;const nom=c=>c.cliente||c.gestor;
-function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e,m=ls('waApp','b');if(m==='s'&&navigator.share){navigator.share({text:x}).catch(()=>{});return}if(/Android/i.test(navigator.userAgent)){const pk=m==='n'?'com.whatsapp':'com.whatsapp.w4b';location.href='intent://send/?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package='+pk+';end'}else{window.open(w,'_blank')}}
+function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e,m=ls('waApp2','n');if(m==='s'&&navigator.share){navigator.share({text:x}).catch(()=>{});return}if(/Android/i.test(navigator.userAgent)){const pk=m==='n'?'com.whatsapp':'com.whatsapp.w4b';location.href='intent://send/?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package='+pk+';end'}else{window.open(w,'_blank')}}
 function abrirCorte(c){const t=telGet(c.id);abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
@@ -279,7 +279,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v17</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v18</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -300,7 +300,7 @@ function draw(){$('nvcut').value=nvCut();const M=nvMap();const cols=Object.keys(
 $('nvok').onclick=()=>{const c=$('nvcut').value;if(!c)return alert('Fecha inválida');localStorage.setItem('nv_cutover',JSON.stringify(c));const M={};document.querySelectorAll('.nvc').forEach(x=>M[x.dataset.k]=x.value.trim().toUpperCase());const nk=$('nvnk').value.trim();if(nk)M[nk]=$('nvnv').value.trim().toUpperCase();localStorage.setItem('nv_map',JSON.stringify(M));NV_CACHE=null;draw();alert('Guardado. Vuelve a cargar los datos de cada pestaña.')};
 $('nvrst').onclick=()=>{if(!confirm('¿Restablecer fecha de corte y equivalencias?'))return;localStorage.removeItem('nv_cutover');localStorage.removeItem('nv_map');draw()};draw()})()</script>
 
-<script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp","b");w.onchange=()=>ss("waApp",w.value)})()</script>
+<script>(function(){const w=document.getElementById("waApp");w.value=ls("waApp2","n");w.onchange=()=>ss("waApp2",w.value)})()</script>
 <script>
 /*PCORE-START*/
 const P_GID='1456229317';
