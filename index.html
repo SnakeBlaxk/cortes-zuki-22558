@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v19</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v20</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -279,7 +279,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v19</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v20</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -312,14 +312,15 @@ function pParse(text){const R=parseCSV(text);const H=R[0].map(h=>String(h||'').t
   const it=[];let sub=0;for(const q of Q){const c=num(r[q.j]),st=q.s>=0?num(r[q.s]):0;sub+=st;if(c||st)it.push({t:q.lab,c,st})}
   const tot=num(r[iT]);if(!it.length&&!tot)continue;out.push({fecha:f,prov:p,items:it,total:tot,sub})}return out}
 function pvExtras(R){const X=[{fecha:'2026-10-23',prov:'TAX 2',items:[{t:'Estado de cuenta',c:1,st:50}],total:50,sub:50,src:'manual'}];for(const x of X){if(R.some(r=>r.prov==x.prov&&r.fecha==x.fecha&&r.items.some(i=>/estado/i.test(i.t))))continue;R.push(x)}return R}
-function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
+function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,st:i.st,src:r.src})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
  return Object.values(G).map(c=>{c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}).sort((a,b)=>a.prov.localeCompare(b.prov))}
 function pFd(s){const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
 function pM(n){return '$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}
+const pM=n=>'$'+(Math.round(n*100)/100).toLocaleString('es-MX',{maximumFractionDigits:2});const pPU=l=>l.st==null||!l.c?null:l.st/l.c;
 function pTexto(c){const L=['*CORTE PROVEEDOR '+c.prov+'*','Del '+pFd(c.desde)+' al '+pFd(c.hasta),''];let f='';
- for(const l of c.lineas){if(l.fecha!=f){f=l.fecha;L.push('📅 '+pFd(f))}L.push('  • '+l.t+': '+l.c)}
+ for(const l of c.lineas){if(l.fecha!=f){f=l.fecha;L.push('📅 '+pFd(f))}L.push('  • '+l.t+': '+l.c+(pPU(l)!=null?' x '+pM(pPU(l))+' = '+pM(l.st):''))}
  L.push('','*MONTO A PAGAR: '+pM(c.monto)+'*','','Por favor confirma si el corte está correcto ✅');return L.join('\n')}
-function pOne(rows,p,d,h){const c={prov:p,desde:d,hasta:h,lineas:[],monto:0,dif:0};for(const r of rows){if(r.prov!=p||r.fecha<d||r.fecha>h)continue;c.lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));c.monto+=r.total;c.dif+=r.total-r.sub}
+function pOne(rows,p,d,h){const c={prov:p,desde:d,hasta:h,lineas:[],monto:0,dif:0};for(const r of rows){if(r.prov!=p||r.fecha<d||r.fecha>h)continue;c.lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,st:i.st,src:r.src})));c.monto+=r.total;c.dif+=r.total-r.sub}
  c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}
 /*PCORE-END*/
 (function(){
@@ -373,12 +374,12 @@ function render(){const B=$('pcortes');B.innerHTML='';
  A.innerHTML=ROWS.length?`<label style="flex:1">Agregar proveedor<select id="paddSel"><option value="">— elegir —</option>${all.map(p=>`<option>${esc(p)}</option>`).join('')}</select></label>`:'';
  if(ROWS.length)$('paddSel').onchange=e=>{const p=e.target.value;if(!p)return;const ad=ls('pv_agregados',[]);if(!ad.includes(p))ad.push(p);ss('pv_agregados',ad);rebuild();render()};const ph=ls('pv_telefonos',{});
  for(const c of PC){const e=estado(c);const el=document.createElement('div');el.className='card';let f='',rows='';
-  for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}${l.sc?' <span class="tag" style="background:#fed7aa;color:#9a3412">SIN COSTO</span>':''}</td><td style="text-align:right">${l.c}</td></tr>`}
+  for(const l of c.lineas){rows+=`<tr><td>${l.fecha!=f?pFd(f=l.fecha):''}</td><td>${esc(l.t)}${l.sc?' <span class="tag" style="background:#fed7aa;color:#9a3412">SIN COSTO</span>':''}</td><td style="text-align:right">${l.c}</td><td style="text-align:right">${pPU(l)!=null?pM(pPU(l)):'—'}</td><td style="text-align:right">${l.st!=null?pM(l.st):'—'}</td></tr>`}
   const dif=e.pagado&&Math.abs(e.pagado.monto-c.monto)>0.009;
   el.innerHTML=`<h3><span>${esc(c.prov)} · ${pFd(c.desde)} al ${pFd(c.hasta)}${/NUEVOS PEDIDOS|SIN PROVEEDOR/.test(c.prov)?' <span class="tag" style="background:#fed7aa;color:#9a3412">⚠ Sin proveedor asignado</span>':''}${c.lineas.some(l=>l.sc)?' <span class="tag" style="background:#fed7aa;color:#9a3412">⚠ SIN COSTO</span>':''}</span><span>${isPre(c.prov)?'<span class="tag" style="background:#dbeafe">Prepago</span> ':''}<label style="font-size:.75rem"><input type="checkbox" class="pre" ${isPre(c.prov)?'checked':''}> Prepago</label> <button class="gear" title="Teléfono">⚙️</button></span></h3>
   <div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}${ls('pv_agregados',[]).includes(c.prov)?'<button class="sec rq" style="font-size:.75rem;padding:4px 8px">Quitar</button>':''}</div>
   <div style="font-size:.8rem;color:#475569">Del ${pFd(c.desde)} al ${pFd(c.hasta)} · ${nvFuente(c.desde,c.hasta)} · Tel: ${ph[c.prov]||'<i>sin teléfono</i>'}</div>
-  <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th></tr>${rows}</table></div>
+  <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio unit.</th><th style="text-align:right">Importe</th></tr>${rows}</table></div>
   ${isPre(c.prov)?'<div style="text-align:right"><span class="tag" style="background:#dbeafe">Prepago · consume créditos (no se paga)</span> '+c.lineas.reduce((a,l)=>a+(+l.c||0),0)+' trámites</div>':`<div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>`}
   ${isPre(c.prov)?'':`<div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
   <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`}`;
