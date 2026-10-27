@@ -311,7 +311,7 @@ function pParse(text){const R=parseCSV(text);const H=R[0].map(h=>String(h||'').t
  const out=[];for(const r of R.slice(1)){const f=parseFecha(r[iF]);const p=String(r[iP]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!f||!p)continue;
   const it=[];let sub=0;for(const q of Q){const c=num(r[q.j]),st=q.s>=0?num(r[q.s]):0;sub+=st;if(c||st)it.push({t:q.lab,c,st})}
   const tot=num(r[iT]);if(!it.length&&!tot)continue;out.push({fecha:f,prov:p,items:it,total:tot,sub})}return out}
-function pvExtras(R){const X=[{fecha:'2026-10-23',prov:'TAX 2',items:[{t:'Estado de cuenta',c:1,sc:50}],total:50,sub:50,src:'manual'}];for(const x of X){if(R.some(r=>r.prov==x.prov&&r.fecha==x.fecha&&r.items.some(i=>/estado/i.test(i.t))))continue;R.push(x)}return R}
+function pvExtras(R){const X=[{fecha:'2026-10-23',prov:'TAX 2',items:[{t:'Estado de cuenta',c:1,st:50}],total:50,sub:50,src:'manual'}];for(const x of X){if(R.some(r=>r.prov==x.prov&&r.fecha==x.fecha&&r.items.some(i=>/estado/i.test(i.t))))continue;R.push(x)}return R}
 function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
  return Object.values(G).map(c=>{c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}).sort((a,b)=>a.prov.localeCompare(b.prov))}
 function pFd(s){const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
