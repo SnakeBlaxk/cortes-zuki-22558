@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v21</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v22</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -281,7 +281,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v21</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v22</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -385,7 +385,7 @@ function render(){const B=$('pcortes');B.innerHTML='';
   <div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Tipo de trámite</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio unit.</th><th style="text-align:right">Importe</th></tr>${rows}</table></div>
   ${isPre(c.prov)?'<div style="text-align:right"><span class="tag" style="background:#dbeafe">Prepago · consume créditos (no se paga)</span> '+c.lineas.reduce((a,l)=>a+(+l.c||0),0)+' trámites</div>':`<div style="font-size:1.05rem;text-align:right"><b>MONTO A PAGAR: ${pM(c.monto)}</b></div>`}
   ${isPre(c.prov)?'':`<div><span class="tag">${stLabel(e)}</span>${dif?` <span class="bad">Diferencia: ${pM(e.pagado.monto-c.monto)}</span>`:''}${e.pagado&&e.pagado.montoCorte!=null&&Math.abs(e.pagado.montoCorte-c.monto)>0.009?` <span class="bad">El corte cambió desde el pago (antes ${pM(e.pagado.montoCorte)})</span>`:''}</div>
-  <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button></div>`}`;
+  <div class="row"><button class="wa b1">Enviar corte</button><button class="sec b2">Marcar aprobado</button><button class="b3">Registrar pago</button><button class="sec b4">Reiniciar</button>${e.pagado&&e.pagado.id?'<button class="sec b5">Ver comprobante</button>':''}</div>`}`;
   el.querySelector('.pre').onchange=ev=>{setPre(c.prov,ev.target.checked);render()};
   const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)setRango(c.prov,ri.value,rf.value);else alert('Rango inválido')};
   el.querySelector('.rr').onclick=()=>setRango(c.prov);
@@ -394,6 +394,7 @@ function render(){const B=$('pcortes');B.innerHTML='';
   if(!isPre(c.prov))el.querySelector('.b1').onclick=()=>{let t=ls('pv_telefonos',{})[c.prov];if(!t){const v=prompt('Teléfono WhatsApp de '+c.prov+' (con 52):','');if(!v)return;t=v.replace(/\D/g,'');const p=ls('pv_telefonos',{});p[c.prov]=t;ss('pv_telefonos',p)}const s=estado(c);s.enviado=hoyISO();ss(stKey(c),s);abrirWA(t,c.texto);render()};
   if(!isPre(c.prov))el.querySelector('.b2').onclick=()=>{const s=estado(c);s.aprobado=hoyISO();ss(stKey(c),s);render()};
   if(!isPre(c.prov))el.querySelector('.b3').onclick=()=>abrirPago(c);
+  {const b5=el.querySelector('.b5');if(b5)b5.onclick=async()=>{let a=[];try{a=await pagosAll()}catch(x){return alert('Error: '+x.message)}const p=a.find(p=>p.id==e.pagado.id);modal(p&&p.img?`<img src="${p.img}" style="max-width:100%;max-height:90vh;display:block"><p>Pagado: <b>${pM(p.monto)}</b> el ${pFd(p.fechaPago)}</p>`:'<div class="panel">Este pago no tiene comprobante guardado en este navegador</div>')}}
   if(!isPre(c.prov))el.querySelector('.b4').onclick=()=>{if(confirm('¿Reiniciar estado de este corte? (el historial de pagos se conserva)')){localStorage.removeItem(stKey(c));render()}};
   B.appendChild(el)}
  renderResumen();renderCred()}
