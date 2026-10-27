@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v20</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v21</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -133,7 +133,7 @@ const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta p
 // trámite bot -> columna de '$ proveedores' (editable)
 const NV_MAP_DEF={'Actas':'ACTAS','Acta por datos':'ACTAS','RFC Express':'CLON','RFC con domicilio fiscal':'CLON','RFC con ID/CIF':'CLON','RFC normal':'VERIFICABLE','RFC alterno':'ORIGINAL',
  'Antecedentes penales':'ANTECEDENTES','Cadena':'CADENA','Semanas cotizadas':'SEMANAS','Vigencia de derechos':'VIGENCIAS','Fecha de retiro':'FECHA ULT. RETIRO','Citas SAT':'CITAS SAT',
- 'NSS':'NSS','No derechohabiente':'NO DERECHOHABIENTE','CFE':'CFE','CURP':'','Reseteo':'RESETEO'};
+ 'NSS':'NSS','No derechohabiente':'NO DERECHOHABIENTE','CFE':'CFE','CURP':'CURP','Reseteo':'RESETEO','Estado de cuenta Infonavit':'ESTADO DE CUENTA INFONAVIT','Resumen Infonavit':'ESTADO DE CUENTA INFONAVIT','Hoja de retención':'HOJA DE RETENCION','Precalificación Infonavit':'PRECALIFICACION INFONAVIT','Opinión de cumplimiento':'OPINION CUMPLIMIENTO','Buró de crédito':'BURO DE CREDITO','Certificado de prepa':'CERTIFICADO DE PREPA','No deudor alimentario':'NO DEUDOR ALIMENTARIO','Inexistencia de matrimonio':'INEXISTENCIA MATRIMONIO','Localización de NSS':'LOCALIZACION NSS','Localización de Afore':'LOCALIZACION AFORE','SINDO':'SINDO'};
 // columna -> etiqueta proveedor (igual que la hoja anterior para que Comparación cuadre)
 const NV_PLAB={'ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','VERIFICABLE':'RFC verificable','ORIGINAL':'RFC original','IDENTIFICABLE':'IDCIF','GENERACION DE IDCIF':'IDCIF','ANTECEDENTES':'Antecedentes penales',
  'SEMANAS':'Semanas / vigencias','VIGENCIAS':'Semanas / vigencias','CITAS SAT':'Citas SAT','RESETEO':'Reseteo / web','FECHA ULT. RETIRO':'Fecha de retiro','NSS':'NSS','NO DERECHOHABIENTE':'No derechohabiente','CFE':'CFE','SINDO':'SINDO','SALARIO':'Salario'};
@@ -161,11 +161,13 @@ function nvMerge(oldRows,newRows){const cut=nvCut();return oldRows.filter(r=>r.f
 function nvFuente(d,h){const cut=nvCut();return 'Fuente: '+(h<cut?'hoja anterior':d>=cut?'bot':'hoja anterior (< '+cut.split('-').reverse().join('/')+') + bot')}
 const NV_URL=g=>'https://docs.google.com/spreadsheets/d/'+NV_SHEET+'/export?format=csv'+(g?'&gid='+g:'');
 let NV_CACHE=null;
+const PV_PRECIOS={'TAX 2':{'ACTAS':15,'CLON':25,'GENERACION DE IDCIF':25,'IDENTIFICABLE':25,'VERIFICABLE':60,'ANTECEDENTES':70,'SEMANAS':35,'VIGENCIAS':20,'CITAS SAT':50,'NSS':35,'LOCALIZACION NSS':20,'NO DERECHOHABIENTE':20,'SINDO':60,'RESETEO':50,'CFE':6,'CURP':3,'ESTADO DE CUENTA INFONAVIT':50,'HOJA DE RETENCION':50,'PRECALIFICACION INFONAVIT':50,'OPINION CUMPLIMIENTO':65,'BURO DE CREDITO':100,'CERTIFICADO DE PREPA':100,'NO DEUDOR ALIMENTARIO':20,'INEXISTENCIA MATRIMONIO':40,'CONSTANCIA INHABILITACION':40,'ESTADO DE CUENTA AFORE BANORTE':600,'LOCALIZACION AFORE':20,'UNIFICACION NSS':4000,'CORRECCION DATOS IMSS':3000}};
+function pvOverride(C){for(const p in PV_PRECIOS){const k=Object.keys(C).find(x=>norm(x)==p)||p;C[k]=Object.assign({},C[k]||{},PV_PRECIOS[p])}return C}
 async function nvLoad(force){if(!force&&NV_CACHE&&Date.now()-NV_CACHE.t<30000)return NV_CACHE;
  const[a,b]=await Promise.all([fetch(NV_URL()+'&_='+Date.now()).then(r=>{if(!r.ok)throw new Error('Hoja bot HTTP '+r.status);return r.text()}),
   fetch('https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid='+NV_COST_GID+'&_='+Date.now()).then(r=>{if(!r.ok)throw new Error('$ proveedores HTTP '+r.status);return r.text()})]);
  if(!/TR[AÁ]MITE/i.test(a.slice(0,300)))throw new Error('Hoja del bot no legible (¿compartida?)');
- NV_CACHE={t:Date.now(),N:nvParse(a),C:nvCostos(b)};return NV_CACHE}
+ NV_CACHE={t:Date.now(),N:nvParse(a),C:pvOverride(nvCostos(b))};return NV_CACHE}
 /*NV-END*/
 if(typeof document!='undefined'){
 var ls=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},ss=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -279,7 +281,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v20</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v21</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
