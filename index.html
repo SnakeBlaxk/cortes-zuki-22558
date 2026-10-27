@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v18</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v19</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -279,7 +279,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v18</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v19</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -311,6 +311,7 @@ function pParse(text){const R=parseCSV(text);const H=R[0].map(h=>String(h||'').t
  const out=[];for(const r of R.slice(1)){const f=parseFecha(r[iF]);const p=String(r[iP]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!f||!p)continue;
   const it=[];let sub=0;for(const q of Q){const c=num(r[q.j]),st=q.s>=0?num(r[q.s]):0;sub+=st;if(c||st)it.push({t:q.lab,c,st})}
   const tot=num(r[iT]);if(!it.length&&!tot)continue;out.push({fecha:f,prov:p,items:it,total:tot,sub})}return out}
+function pvExtras(R){const X=[{fecha:'2026-10-23',prov:'TAX 2',items:[{t:'Estado de cuenta',c:1,sc:50}],total:50,sub:50,src:'manual'}];for(const x of X){if(R.some(r=>r.prov==x.prov&&r.fecha==x.fecha&&r.items.some(i=>/estado/i.test(i.t))))continue;R.push(x)}return R}
 function pBuild(rows,d,h){const G={};for(const r of rows){if(r.fecha<d||r.fecha>h)continue;(G[r.prov]=G[r.prov]||{prov:r.prov,desde:d,hasta:h,lineas:[],monto:0,dif:0}).lineas.push(...r.items.map(i=>({fecha:r.fecha,t:i.t,c:i.c,sc:i.sc,src:r.src})));G[r.prov].monto+=r.total;G[r.prov].dif+=r.total-r.sub}
  return Object.values(G).map(c=>{c.monto=Math.round(c.monto*100)/100;c.lineas.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);c.texto=pTexto(c);return c}).sort((a,b)=>a.prov.localeCompare(b.prov))}
 function pFd(s){const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
@@ -338,7 +339,7 @@ function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMont
 const ld=ls('pv_rango',null);if(ld){$('pdesde').value=ld[0];$('phasta').value=ld[1]}else{$('pdesde').value=$('desde').value;$('phasta').value=$('hasta').value}
 async function cargar(){const d=$('pdesde').value,h=$('phasta').value;if(!d||!h||d>h)return pmsg('Rango de fechas inválido');ss('pv_rango',[d,h]);pmsg('Cargando…');
  try{const r=await fetch(P_URL+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!/PROVEEDOR/i.test(t.slice(0,500)))throw new Error('Respuesta inesperada (¿hoja compartida?)');
-  ROWS=pParse(t);let nvE='';try{const V=await nvLoad();ROWS=nvMerge(ROWS,nvProvRows(V.N,V.C))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+') · '+nvFuente(d,h)+nvE)}catch(e){pmsg('Error al cargar: '+e.message)}render()}
+  ROWS=pParse(t);let nvE='';try{const V=await nvLoad();ROWS=nvMerge(ROWS,nvProvRows(V.N,V.C))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}ROWS=pvExtras(ROWS);try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+') · '+nvFuente(d,h)+nvE)}catch(e){pmsg('Error al cargar: '+e.message)}render()}
 function gen(){return [$('pdesde').value,$('phasta').value]}
 function rebuild(){const[d,h]=gen();const cr=ls('pv_rangos',{}),ad=ls('pv_agregados',[]);const S=new Set();
  for(const r of ROWS)if(r.fecha>=d&&r.fecha<=h)S.add(r.prov);for(const p in cr)if(ROWS.some(r=>r.prov==p&&r.fecha>=cr[p][0]&&r.fecha<=cr[p][1]))S.add(p);for(const p of ad)S.add(p);
