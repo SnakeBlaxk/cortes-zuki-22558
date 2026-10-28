@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v22</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v23</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -148,13 +148,13 @@ function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=
 function nvCostos(text){const R=parseCSV(text);const H=R[0].map(norm);const C={};
  for(const r of R.slice(1)){const p=String(r[0]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!p)continue;C[p]={};
   for(let j=1;j<H.length;j++){if(!H[j])continue;const v=String(r[j]||'').trim();if(!v)continue;C[p][H[j]]=num(v)}}return C}
-function nvCliRows(N){return N.map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot'};
+function nvCliRows(N){return N.map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot',abono:norm(t)=='ABONO'};
   if(cat&&cat[0]=='Reseteo'){Object.assign(it,{tramite:'Reseteo',unit:RESETEO,subtotal:RESETEO*x.cantidad,santi:RESETEO,reseteo:true})}
   else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
    if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
    else Object.assign(it,{tramite:'Otros: '+t,unit,subtotal:sub,santi:null,otros:true,texto:t+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
   const pm=String(x.notas||'').match(/pago\s*\$\s*([\d.,]+)\s*recibido/i);const pe=pm?num(pm[1]):0;return {fecha:x.fecha,cliente:x.cliente,gestor:x.gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot'}})}
-function nvProvRows(N,C){const M=nvMap();return N.map(x=>{const p=x.prov||'SIN PROVEEDOR';const col=norm(nvMapGet(M,x.tramite)||'');const lab=col?(NV_PLAB[col]||col):x.tramite;
+function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO').map(x=>{const p=x.prov||'SIN PROVEEDOR';const col=norm(nvMapGet(M,x.tramite)||'');const lab=col?(NV_PLAB[col]||col):x.tramite;
   const cp=C[p]||{};const has=col&&Object.prototype.hasOwnProperty.call(cp,col);const cost=has?cp[col]:0;const st=Math.round(cost*x.cantidad*100)/100;
   return {fecha:x.fecha,prov:p,items:[{t:lab,c:x.cantidad,st,sc:!has,orig:x.tramite}],total:st,sub:st,src:'bot',sinProv:/NUEVOS PEDIDOS/.test(p)||!x.prov}})}
 function nvMerge(oldRows,newRows){const cut=nvCut();return oldRows.filter(r=>r.fecha<cut).concat(newRows.filter(r=>r.fecha>=cut))}
@@ -281,7 +281,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v22</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v23</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -455,7 +455,7 @@ function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e
  const add1=(k,side,who,c,e)=>{const nm=k.slice(2);
  const gk=e.i?'INT|'+k:(e.g?'G|'+e.g:'SE|'+k);const g=G[gk]=G[gk]||{g:e.g||nm,interno:!!e.i,sin:!e.i&&!e.g,comprado:0,entregado:0,prov:{},cli:{},tipos:{}};
  g.tipos[k]=1;if(side=='P'){g.comprado+=c;g.prov[who]=(g.prov[who]||0)+c}else{g.entregado+=c;g.cli[who]=(g.cli[who]||0)+c}};
- for(const r of crows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)add('C:'+(i.otros?'Otros':i.tramite),'C',(r.cliente||'(sin cliente)').trim()+' · '+(r.gestor||'SIN GESTOR'),i.cantidad)}
+ for(const r of crows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)if(!i.abono)add('C:'+(i.otros?'Otros':i.tramite),'C',(r.cliente||'(sin cliente)').trim()+' · '+(r.gestor||'SIN GESTOR'),i.cantidad)}
  for(const r of prows){if(r.fecha<d||r.fecha>h)continue;for(const i of r.items)if(i.c)add('P:'+i.t,'P',r.prov,i.c)}
  return Object.values(G).map(g=>{g.dif=g.comprado-g.entregado;return g}).sort((a,b)=>(a.interno-b.interno)||(a.sin-b.sin)||a.g.localeCompare(b.g))}
 /*XCORE-END*/
