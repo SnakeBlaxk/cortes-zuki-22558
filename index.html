@@ -131,11 +131,11 @@ const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta p
  'CITAS SAT':['Citas SAT',230],'NSS':['NSS',5],'CURP':['CURP',5],'CFE':['CFE',5],'NO DERECHOHABIENTE':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA IMSS':['No derechohabiencia IMSS',5],'SEMANAS COTIZADAS':['Semanas cotizadas',10],'SEMANAS':['Semanas cotizadas',10],
  'VIGENCIA DE DERECHOS':['Vigencia de derechos',10],'VIGENCIA':['Vigencia de derechos',10],'VIGENCIAS':['Vigencia de derechos',10],'RESETEO':['Reseteo',150],'CADENA':['Cadena',null],'ESTADO DE CUENTA':['Estado de cuenta',null],'ESTADO DE CUENTA INFONAVIT':['Estado de cuenta',null],'RESUMEN INFONAVIT':['Estado de cuenta',null]};
 // trámite bot -> columna de '$ proveedores' (editable)
-const NV_MAP_DEF={'Actas':'ACTAS','Acta por datos':'ACTAS','RFC Express':'CLON','RFC con domicilio fiscal':'CLON','RFC con ID/CIF':'CLON','RFC normal':'VERIFICABLE','RFC alterno':'ORIGINAL',
+const NV_MAP_DEF={'Búsqueda':'BUSQUEDA','Actas':'ACTAS','Acta por datos':'ACTAS','RFC Express':'CLON','RFC con domicilio fiscal':'CLON','RFC con ID/CIF':'CLON','RFC normal':'VERIFICABLE','RFC alterno':'ORIGINAL',
  'Antecedentes penales':'ANTECEDENTES','Cadena':'CADENA','Semanas cotizadas':'SEMANAS','Semanas':'SEMANAS','Vigencia de derechos':'VIGENCIAS','Vigencia':'VIGENCIAS','No derechohabiencia IMSS':'NO DERECHOHABIENTE','No derechohabiencia':'NO DERECHOHABIENTE','Fecha de retiro':'FECHA ULT. RETIRO','Citas SAT':'CITAS SAT',
  'NSS':'NSS','No derechohabiente':'NO DERECHOHABIENTE','CFE':'CFE','CURP':'CURP','Reseteo':'RESETEO','Estado de cuenta Infonavit':'ESTADO DE CUENTA INFONAVIT','Estado de cuenta':'ESTADO DE CUENTA INFONAVIT','Resumen Infonavit':'ESTADO DE CUENTA INFONAVIT','Hoja de retención':'HOJA DE RETENCION','Precalificación Infonavit':'PRECALIFICACION INFONAVIT','Opinión de cumplimiento':'OPINION CUMPLIMIENTO','Buró de crédito':'BURO DE CREDITO','Certificado de prepa':'CERTIFICADO DE PREPA','No deudor alimentario':'NO DEUDOR ALIMENTARIO','Inexistencia de matrimonio':'INEXISTENCIA MATRIMONIO','Localización de NSS':'LOCALIZACION NSS','Localización de Afore':'LOCALIZACION AFORE','SINDO':'SINDO'};
 // columna -> etiqueta proveedor (igual que la hoja anterior para que Comparación cuadre)
-const NV_PLAB={'ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','VERIFICABLE':'RFC verificable','ORIGINAL':'RFC original','IDENTIFICABLE':'IDCIF','GENERACION DE IDCIF':'IDCIF','ANTECEDENTES':'Antecedentes penales',
+const NV_PLAB={'BUSQUEDA':'Búsqueda','ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','VERIFICABLE':'RFC verificable','ORIGINAL':'RFC original','IDENTIFICABLE':'IDCIF','GENERACION DE IDCIF':'IDCIF','ANTECEDENTES':'Antecedentes penales',
  'SEMANAS':'Semanas cotizadas','VIGENCIAS':'Vigencia de derechos','CITAS SAT':'Citas SAT','RESETEO':'Reseteo / web','FECHA ULT. RETIRO':'Fecha de retiro','NSS':'NSS','NO DERECHOHABIENTE':'No derechohabiencia IMSS','CFE':'CFE','CURP':'CURP','ESTADO DE CUENTA INFONAVIT':'Estado de cuenta','ESTADO DE CUENTA':'Estado de cuenta','SINDO':'SINDO','SALARIO':'Salario'};
 function nvMap(){return Object.assign({},NV_MAP_DEF,nvLs('nv_map',{}))}
 function nvMapGet(M,t){const k=Object.keys(M).find(x=>norm(x)==norm(t));return k!=null?M[k]:null}
@@ -148,20 +148,20 @@ function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=
 function nvCostos(text){const R=parseCSV(text);const H=R[0].map(norm);const C={};
  for(const r of R.slice(1)){const p=String(r[0]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!p)continue;C[p]={};
   for(let j=1;j<H.length;j++){if(!H[j])continue;const v=String(r[j]||'').trim();if(!v)continue;C[p][H[j]]=num(v)}}return C}
-function nvCliRows(N){return N.map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot',abono:norm(t)=='ABONO'};
+function nvCliRows(N){return N.filter(x=>norm(x.tramite)!='BUSQUEDA').map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot',abono:norm(t)=='ABONO'};
   if(cat&&cat[0]=='Reseteo'){Object.assign(it,{tramite:'Reseteo',unit:RESETEO,subtotal:RESETEO*x.cantidad,santi:RESETEO,reseteo:true})}
   else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
    if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
    else Object.assign(it,{tramite:'Otros: '+t,unit,subtotal:sub,santi:null,otros:true,texto:t+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
   const pm=String(x.notas||'').match(/pago\s*\$\s*([\d.,]+)\s*recibido/i);const pe=pm?num(pm[1]):0;return {fecha:x.fecha,cliente:x.cliente,gestor:x.gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot'}})}
-function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO').map(x=>{const p=x.prov||'SIN PROVEEDOR';const col=norm(nvMapGet(M,x.tramite)||'');const lab=col?(NV_PLAB[col]||col):x.tramite;
+function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO').map(x=>{const p=x.prov||'SIN PROVEEDOR';const vb=norm(x.tramite)=='RFC NORMAL'&&/via busqueda/.test(sinAc(String(x.notas||'')).toLowerCase());const col=vb?'CLON':norm(nvMapGet(M,x.tramite)||'');const lab=vb?'RFC verificable':(col?(NV_PLAB[col]||col):x.tramite);
   const cp=C[p]||{};const has=col&&Object.prototype.hasOwnProperty.call(cp,col);const cost=has?cp[col]:0;const st=Math.round(cost*x.cantidad*100)/100;
   return {fecha:x.fecha,prov:p,items:[{t:lab,c:x.cantidad,st,sc:!has,orig:x.tramite}],total:st,sub:st,src:'bot',sinProv:/NUEVOS PEDIDOS/.test(p)||!x.prov}})}
 function nvMerge(oldRows,newRows){const cut=nvCut();return oldRows.filter(r=>r.fecha<cut).concat(newRows.filter(r=>r.fecha>=cut))}
 function nvFuente(d,h){const cut=nvCut();return 'Fuente: '+(h<cut?'hoja anterior':d>=cut?'bot':'hoja anterior (< '+cut.split('-').reverse().join('/')+') + bot')}
 const NV_URL=g=>'https://docs.google.com/spreadsheets/d/'+NV_SHEET+'/export?format=csv'+(g?'&gid='+g:'');
 let NV_CACHE=null;
-const PV_PRECIOS={'TAX 2':{'ACTAS':15,'CLON':25,'GENERACION DE IDCIF':25,'IDENTIFICABLE':25,'VERIFICABLE':60,'ANTECEDENTES':70,'SEMANAS':35,'VIGENCIAS':20,'CITAS SAT':50,'NSS':35,'LOCALIZACION NSS':20,'NO DERECHOHABIENTE':20,'SINDO':60,'RESETEO':50,'CFE':6,'CURP':3,'ESTADO DE CUENTA INFONAVIT':50,'HOJA DE RETENCION':50,'PRECALIFICACION INFONAVIT':50,'OPINION CUMPLIMIENTO':65,'BURO DE CREDITO':100,'CERTIFICADO DE PREPA':100,'NO DEUDOR ALIMENTARIO':20,'INEXISTENCIA MATRIMONIO':40,'CONSTANCIA INHABILITACION':40,'ESTADO DE CUENTA AFORE BANORTE':600,'LOCALIZACION AFORE':20,'UNIFICACION NSS':4000,'CORRECCION DATOS IMSS':3000}};
+const PV_PRECIOS={'ORIGINAL Y RASTREO':{'BUSQUEDA':35},'TAX 2':{'ACTAS':15,'CLON':25,'GENERACION DE IDCIF':25,'IDENTIFICABLE':25,'VERIFICABLE':60,'ANTECEDENTES':70,'SEMANAS':35,'VIGENCIAS':20,'CITAS SAT':50,'NSS':35,'LOCALIZACION NSS':20,'NO DERECHOHABIENTE':20,'SINDO':60,'RESETEO':50,'CFE':6,'CURP':3,'ESTADO DE CUENTA INFONAVIT':50,'HOJA DE RETENCION':50,'PRECALIFICACION INFONAVIT':50,'OPINION CUMPLIMIENTO':65,'BURO DE CREDITO':100,'CERTIFICADO DE PREPA':100,'NO DEUDOR ALIMENTARIO':20,'INEXISTENCIA MATRIMONIO':40,'CONSTANCIA INHABILITACION':40,'ESTADO DE CUENTA AFORE BANORTE':600,'LOCALIZACION AFORE':20,'UNIFICACION NSS':4000,'CORRECCION DATOS IMSS':3000}};
 function pvOverride(C){for(const p in PV_PRECIOS){const k=Object.keys(C).find(x=>norm(x)==p)||p;C[k]=Object.assign({},C[k]||{},PV_PRECIOS[p])}return C}
 async function nvLoad(force){if(!force&&NV_CACHE&&Date.now()-NV_CACHE.t<30000)return NV_CACHE;
  const[a,b]=await Promise.all([fetch(NV_URL()+'&_='+Date.now()).then(r=>{if(!r.ok)throw new Error('Hoja bot HTTP '+r.status);return r.text()}),
@@ -281,7 +281,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v24</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v25</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -445,9 +445,9 @@ const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas, Cadenas / Actas 
 'C:Antecedentes penales':{g:'Antecedentes penales'},'P:Antecedentes penales':{g:'Antecedentes penales'},
 'C:Semanas cotizadas / vigencias':{g:'Semanas / vigencias (hoja anterior – combinado)'},'P:Semanas / vigencias':{g:'Semanas / vigencias (hoja anterior – combinado)'},
 'C:Citas SAT':{g:'Citas SAT'},'P:Citas SAT':{g:'Citas SAT'},'C:Reseteo':{g:'Reseteo'},'P:Reseteo / web':{g:'Reseteo'},
-'C:CFE/NSS/No IMSS/CURP':{g:'CFE/NSS/No IMSS/CURP (hoja anterior – combinado)',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''}};
+'C:CFE/NSS/No IMSS/CURP':{g:'CFE/NSS/No IMSS/CURP (hoja anterior – combinado)',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''},'P:Búsqueda':{g:'Búsquedas (parte del RFC verificable: 1 verificable = 1 búsqueda + 1 PDF)'}};
 const XKNOWN=['C:Actas','C:Acta por datos','C:Semanas cotizadas / vigencias','C:CFE/NSS/No IMSS/CURP','C:RFC económico/Express','C:RFC con domicilio fiscal','C:RFC con ID/CIF','C:RFC normal','C:RFC alterno','C:Antecedentes penales','C:Fecha de retiro','C:Citas SAT','C:Reseteo','C:Otros',
-'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web'];
+'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web','P:Búsqueda'];
 if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<2){const E=ls('x_eq',{});delete E['C:Acta por datos'];delete E['P:Cadenas'];ss('x_eq',E);ss('x_eq_v',2)}
 if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<3){const E=ls('x_eq',{});for(const k of ['C:Semanas cotizadas / vigencias','P:Semanas / vigencias','C:CFE/NSS/No IMSS/CURP','C:CURP','C:No derechohabiente','P:No derechohabiente'])delete E[k];ss('x_eq',E);ss('x_eq_v',3)}
 Object.assign(XDEF,{'C:Estado de cuenta':{g:'Estado de cuenta'},'C:Estado de cuenta Infonavit':{g:'Estado de cuenta'},'P:Estado de cuenta':{g:'Estado de cuenta'},'P:Estado de cuenta Infonavit':{g:'Estado de cuenta'}});
