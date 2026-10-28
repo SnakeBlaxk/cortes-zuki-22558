@@ -128,15 +128,15 @@ function nvCut(){return nvLs('nv_cutover',NV_CUT_DEF)||NV_CUT_DEF}
 // trámite (bot, normalizado) -> [etiqueta cliente, precio Santi]
 const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta por datos',70],'ACTAS POR DATOS':['Acta por datos',70],'RFC EXPRESS':['RFC económico/Express',30],'RFC CON DOMICILIO FISCAL':['RFC con domicilio fiscal',40],
  'RFC CON ID/CIF':['RFC con ID/CIF',50],'RFC NORMAL':['RFC normal',70],'RFC ALTERNO':['RFC alterno',145],'ANTECEDENTES PENALES':['Antecedentes penales',70],'FECHA DE RETIRO':['Fecha de retiro',50],
- 'CITAS SAT':['Citas SAT',230],'NSS':['NSS',5],'CURP':['CURP',5],'CFE':['CFE',5],'NO DERECHOHABIENTE':['No derechohabiente',5],'SEMANAS COTIZADAS':['Semanas cotizadas / vigencias',10],
- 'VIGENCIA DE DERECHOS':['Semanas cotizadas / vigencias',10],'RESETEO':['Reseteo',150],'CADENA':['Cadena',null]};
+ 'CITAS SAT':['Citas SAT',230],'NSS':['NSS',5],'CURP':['CURP',5],'CFE':['CFE',5],'NO DERECHOHABIENTE':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA IMSS':['No derechohabiencia IMSS',5],'SEMANAS COTIZADAS':['Semanas cotizadas',10],'SEMANAS':['Semanas cotizadas',10],
+ 'VIGENCIA DE DERECHOS':['Vigencia de derechos',10],'VIGENCIA':['Vigencia de derechos',10],'VIGENCIAS':['Vigencia de derechos',10],'RESETEO':['Reseteo',150],'CADENA':['Cadena',null]};
 // trámite bot -> columna de '$ proveedores' (editable)
 const NV_MAP_DEF={'Actas':'ACTAS','Acta por datos':'ACTAS','RFC Express':'CLON','RFC con domicilio fiscal':'CLON','RFC con ID/CIF':'CLON','RFC normal':'VERIFICABLE','RFC alterno':'ORIGINAL',
- 'Antecedentes penales':'ANTECEDENTES','Cadena':'CADENA','Semanas cotizadas':'SEMANAS','Vigencia de derechos':'VIGENCIAS','Fecha de retiro':'FECHA ULT. RETIRO','Citas SAT':'CITAS SAT',
+ 'Antecedentes penales':'ANTECEDENTES','Cadena':'CADENA','Semanas cotizadas':'SEMANAS','Semanas':'SEMANAS','Vigencia de derechos':'VIGENCIAS','Vigencia':'VIGENCIAS','No derechohabiencia IMSS':'NO DERECHOHABIENTE','No derechohabiencia':'NO DERECHOHABIENTE','Fecha de retiro':'FECHA ULT. RETIRO','Citas SAT':'CITAS SAT',
  'NSS':'NSS','No derechohabiente':'NO DERECHOHABIENTE','CFE':'CFE','CURP':'CURP','Reseteo':'RESETEO','Estado de cuenta Infonavit':'ESTADO DE CUENTA INFONAVIT','Resumen Infonavit':'ESTADO DE CUENTA INFONAVIT','Hoja de retención':'HOJA DE RETENCION','Precalificación Infonavit':'PRECALIFICACION INFONAVIT','Opinión de cumplimiento':'OPINION CUMPLIMIENTO','Buró de crédito':'BURO DE CREDITO','Certificado de prepa':'CERTIFICADO DE PREPA','No deudor alimentario':'NO DEUDOR ALIMENTARIO','Inexistencia de matrimonio':'INEXISTENCIA MATRIMONIO','Localización de NSS':'LOCALIZACION NSS','Localización de Afore':'LOCALIZACION AFORE','SINDO':'SINDO'};
 // columna -> etiqueta proveedor (igual que la hoja anterior para que Comparación cuadre)
 const NV_PLAB={'ACTAS':'Actas','CADENA':'Cadenas','CLON':'Clon','VERIFICABLE':'RFC verificable','ORIGINAL':'RFC original','IDENTIFICABLE':'IDCIF','GENERACION DE IDCIF':'IDCIF','ANTECEDENTES':'Antecedentes penales',
- 'SEMANAS':'Semanas / vigencias','VIGENCIAS':'Semanas / vigencias','CITAS SAT':'Citas SAT','RESETEO':'Reseteo / web','FECHA ULT. RETIRO':'Fecha de retiro','NSS':'NSS','NO DERECHOHABIENTE':'No derechohabiente','CFE':'CFE','SINDO':'SINDO','SALARIO':'Salario'};
+ 'SEMANAS':'Semanas cotizadas','VIGENCIAS':'Vigencia de derechos','CITAS SAT':'Citas SAT','RESETEO':'Reseteo / web','FECHA ULT. RETIRO':'Fecha de retiro','NSS':'NSS','NO DERECHOHABIENTE':'No derechohabiencia IMSS','CFE':'CFE','CURP':'CURP','SINDO':'SINDO','SALARIO':'Salario'};
 function nvMap(){return Object.assign({},NV_MAP_DEF,nvLs('nv_map',{}))}
 function nvMapGet(M,t){const k=Object.keys(M).find(x=>norm(x)==norm(t));return k!=null?M[k]:null}
 function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=>H.indexOf(n);
@@ -443,13 +443,14 @@ const XDEF={'C:Actas':{g:'Actas'},'C:Acta por datos':{g:'Actas, Cadenas / Actas 
 'C:RFC normal':{g:'RFC verificable'},'P:RFC verificable':{g:'RFC verificable'},
 'C:RFC alterno':{g:'RFC original'},'P:RFC original':{g:'RFC original'},
 'C:Antecedentes penales':{g:'Antecedentes penales'},'P:Antecedentes penales':{g:'Antecedentes penales'},
-'C:Semanas cotizadas / vigencias':{g:'Semanas / vigencias'},'P:Semanas / vigencias':{g:'Semanas / vigencias'},
+'C:Semanas cotizadas / vigencias':{g:'Semanas / vigencias (hoja anterior – combinado)'},'P:Semanas / vigencias':{g:'Semanas / vigencias (hoja anterior – combinado)'},
 'C:Citas SAT':{g:'Citas SAT'},'P:Citas SAT':{g:'Citas SAT'},'C:Reseteo':{g:'Reseteo'},'P:Reseteo / web':{g:'Reseteo'},
-'C:CFE/NSS/No IMSS/CURP':{g:'',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''}};
+'C:CFE/NSS/No IMSS/CURP':{g:'CFE/NSS/No IMSS/CURP (hoja anterior – combinado)',i:true},'C:Fecha de retiro':{g:'',i:true},'C:Estado de cuenta':{g:'',i:true},'C:Estado de cuenta Infonavit':{g:'',i:true},'C:Otros':{g:''}};
 const XKNOWN=['C:Actas','C:Acta por datos','C:Semanas cotizadas / vigencias','C:CFE/NSS/No IMSS/CURP','C:RFC económico/Express','C:RFC con domicilio fiscal','C:RFC con ID/CIF','C:RFC normal','C:RFC alterno','C:Antecedentes penales','C:Fecha de retiro','C:Citas SAT','C:Reseteo','C:Otros',
 'P:Actas','P:Cadenas','P:Clon','P:RFC verificable','P:RFC original','P:RFC con domicilio','P:IDCIF','P:Antecedentes penales','P:Semanas / vigencias','P:Citas SAT','P:Reseteo / web'];
 if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<2){const E=ls('x_eq',{});delete E['C:Acta por datos'];delete E['P:Cadenas'];ss('x_eq',E);ss('x_eq_v',2)}
-Object.assign(XDEF,{'C:NSS':{g:'NSS'},'P:NSS':{g:'NSS'},'C:CFE':{g:'CFE'},'P:CFE':{g:'CFE'},'C:CURP':{g:'',i:true},'C:No derechohabiente':{g:'No derechohabiente'},'P:No derechohabiente':{g:'No derechohabiente'},'C:Cadena':{g:'Cadenas / Actas por datos'},'C:Fecha de retiro':{g:'Fecha de retiro'},'P:Fecha de retiro':{g:'Fecha de retiro'}});
+if(typeof localStorage!='undefined'&&ls('x_eq_v',1)<3){const E=ls('x_eq',{});for(const k of ['C:Semanas cotizadas / vigencias','P:Semanas / vigencias','C:CFE/NSS/No IMSS/CURP','C:CURP','C:No derechohabiente','P:No derechohabiente'])delete E[k];ss('x_eq',E);ss('x_eq_v',3)}
+Object.assign(XDEF,{'C:NSS':{g:'NSS'},'P:NSS':{g:'NSS'},'C:CFE':{g:'CFE'},'P:CFE':{g:'CFE'},'C:CURP':{g:'CURP'},'P:CURP':{g:'CURP'},'C:Semanas cotizadas':{g:'Semanas cotizadas'},'P:Semanas cotizadas':{g:'Semanas cotizadas'},'C:Vigencia de derechos':{g:'Vigencia de derechos'},'P:Vigencia de derechos':{g:'Vigencia de derechos'},'C:No derechohabiencia IMSS':{g:'No derechohabiencia IMSS'},'P:No derechohabiencia IMSS':{g:'No derechohabiencia IMSS'},'C:Cadena':{g:'Cadenas / Actas por datos'},'C:Fecha de retiro':{g:'Fecha de retiro'},'P:Fecha de retiro':{g:'Fecha de retiro'}});
 function xEq(k,E){return (E&&E[k])||XDEF[k]||{g:''}}
 function xBuild(crows,prows,d,h,E){const G={};const add=(k,side,who,c)=>{const e0=xEq(k,E);const gs=String(e0.g||'').split(',').map(x=>x.trim()).filter(Boolean);for(const g1 of (gs.length?gs:[''])){const e={g:g1,i:e0.i};add1(k,side,who,c,e)}};
  const add1=(k,side,who,c,e)=>{const nm=k.slice(2);
