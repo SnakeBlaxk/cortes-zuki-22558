@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v24</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v26</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -148,12 +148,27 @@ function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=
 function nvCostos(text){const R=parseCSV(text);const H=R[0].map(norm);const C={};
  for(const r of R.slice(1)){const p=String(r[0]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!p)continue;C[p]={};
   for(let j=1;j<H.length;j++){if(!H[j])continue;const v=String(r[j]||'').trim();if(!v)continue;C[p][H[j]]=num(v)}}return C}
-function nvCliRows(N){return N.filter(x=>norm(x.tramite)!='BUSQUEDA').map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot',abono:norm(t)=='ABONO'};
+// v26: correcciones de cortes de clientes según la hoja de Canek (solo clientes; proveedores no cambian)
+const NV_CFIX={x:[['2026-10-27','ROLDAN','CFE'],['2026-10-28','ROLDAN','NSS'],['2026-10-29','OPTICA','CFE']],
+ f:[['2026-10-25','CIELO','RFC con ID/CIF','2026-10-24']],q:[['2026-10-26','MARY','No derechohabiente',2]],
+ e:[{fecha:'2026-10-30',cliente:'PEDREGAL',gestor:'CANEK',tramite:'RFC normal',cantidad:1,precio:100,subtotal:100},{fecha:'2026-10-27',cliente:'TZ GESTORIA',gestor:'TZAYAM',tramite:'Importe sin descripción (hoja Canek)',cantidad:1,precio:80,subtotal:80}]};
+function nvCliFix(N){const k=(f,c,t)=>f+'|'+norm(c)+'|'+norm(t),dat=x=>((String(x.notas||'').match(/Dato:\s*([^;]+)/i)||[])[1]||'').trim();
+ const X={};for(const[f,c,t]of NV_CFIX.x)X[k(f,c,t)]=(X[k(f,c,t)]||0)+1;
+ const apd=new Set(N.filter(x=>norm(x.tramite)=='ACTA POR DATOS'&&dat(x)).map(x=>x.fecha+'|'+norm(x.cliente)+'|'+dat(x)));
+ let R=[];for(const x0 of N){const x=Object.assign({},x0);const kk=k(x.fecha,x.cliente,x.tramite);
+  if(X[kk]>0){X[kk]--;continue}
+  if(/^ACTAS?$/.test(norm(x.tramite))&&dat(x)&&apd.has(x.fecha+'|'+norm(x.cliente)+'|'+dat(x)))continue;
+  for(const[f,c,t,to]of NV_CFIX.f)if(kk==k(f,c,t))x.fecha=to;
+  for(const[f,c,t,q]of NV_CFIX.q)if(kk==k(f,c,t)&&x.cantidad<q){x.cantidad=q;if(x.subtotal!=null&&x.precio!=null)x.precio=x.subtotal/q}
+  R.push(x)}
+ for(const e of NV_CFIX.e){if(R.some(x=>k(x.fecha,x.cliente,x.tramite)==k(e.fecha,e.cliente,e.tramite)))continue;R.push(Object.assign({prov:'',notas:'manual (hoja Canek)',id:''},e))}
+ return R}
+function nvCliRows(N){N=nvCliFix(N);const pS=new Set();return N.filter(x=>norm(x.tramite)!='BUSQUEDA'&&!/^\s*costo interno/i.test(String(x.notas||''))).map(x=>{const t=x.tramite,nt=norm(t),fc=/fuera de catalogo/.test(sinAc(t));const cat=fc?null:NV_CLI[nt];const it={cantidad:x.cantidad,src:'bot',abono:norm(t)=='ABONO'};
   if(cat&&cat[0]=='Reseteo'){Object.assign(it,{tramite:'Reseteo',unit:RESETEO,subtotal:RESETEO*x.cantidad,santi:RESETEO,reseteo:true})}
   else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
    if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
    else Object.assign(it,{tramite:'Otros: '+t,unit,subtotal:sub,santi:null,otros:true,texto:t+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
-  const pm=String(x.notas||'').match(/pago\s*\$\s*([\d.,]+)\s*recibido/i);const pe=pm?num(pm[1]):0;return {fecha:x.fecha,cliente:x.cliente,gestor:x.gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot'}})}
+  const nn=String(x.notas||''),pm=nn.match(/pago\s*\$\s*([\d.,]+)(?:\s*\([^)]*\))?\s*recibido([^;]*)/i)||nn.match(/pagado con saldo a favor\s*\$\s*([\d.,]+)()/i);let pe=pm?num(pm[1]):0;if(pe){const pk=x.fecha+'|'+norm(x.cliente)+'|'+pm[0];if(pS.has(pk))pe=0;else pS.add(pk)}return {fecha:x.fecha,cliente:x.cliente,gestor:x.gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot'}})}
 function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO').map(x=>{const p=x.prov||'SIN PROVEEDOR';const vb=norm(x.tramite)=='RFC NORMAL'&&/via busqueda/.test(sinAc(String(x.notas||'')).toLowerCase());const col=vb?'CLON':norm(nvMapGet(M,x.tramite)||'');const lab=vb?'RFC verificable':(col?(NV_PLAB[col]||col):x.tramite);
   const cp=C[p]||{};const has=col&&Object.prototype.hasOwnProperty.call(cp,col);const cost=has?cp[col]:0;const st=Math.round(cost*x.cantidad*100)/100;
   return {fecha:x.fecha,prov:p,items:[{t:lab,c:x.cantidad,st,sc:!has,orig:x.tramite}],total:st,sub:st,src:'bot',sinProv:/NUEVOS PEDIDOS/.test(p)||!x.prov}})}
@@ -281,7 +296,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v25</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v26</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
