@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v26</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v27</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -148,8 +148,8 @@ function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=
 function nvCostos(text){const R=parseCSV(text);const H=R[0].map(norm);const C={};
  for(const r of R.slice(1)){const p=String(r[0]||'').trim().toUpperCase().replace(/\s+/g,' ');if(!p)continue;C[p]={};
   for(let j=1;j<H.length;j++){if(!H[j])continue;const v=String(r[j]||'').trim();if(!v)continue;C[p][H[j]]=num(v)}}return C}
-// v26: correcciones de cortes de clientes según la hoja de Canek (solo clientes; proveedores no cambian)
-const NV_CFIX={x:[['2026-10-27','ROLDAN','CFE'],['2026-10-28','ROLDAN','NSS'],['2026-10-29','OPTICA','CFE']],
+// v26/v27: correcciones de cortes de clientes según la hoja de Canek (solo clientes; proveedores no cambian)
+const NV_CFIX={x:[['2026-10-27','ROLDAN','CFE'],['2026-10-29','OPTICA','CFE']],
  f:[['2026-10-25','CIELO','RFC con ID/CIF','2026-10-24']],q:[['2026-10-26','MARY','No derechohabiente',2]],
  e:[{fecha:'2026-10-30',cliente:'PEDREGAL',gestor:'CANEK',tramite:'RFC normal',cantidad:1,precio:100,subtotal:100},{fecha:'2026-10-27',cliente:'TZ GESTORIA',gestor:'TZAYAM',tramite:'Importe sin descripción (hoja Canek)',cantidad:1,precio:80,subtotal:80}]};
 function nvCliFix(N){const k=(f,c,t)=>f+'|'+norm(c)+'|'+norm(t),dat=x=>((String(x.notas||'').match(/Dato:\s*([^;]+)/i)||[])[1]||'').trim();
@@ -296,7 +296,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v26</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v27</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
