@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v27</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v28</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -64,6 +64,79 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 <img id="ppprev" style="max-width:100%;max-height:200px;display:none;margin-top:6px">
 <div class="row" style="margin-top:10px"><button id="ppok">Guardar pago</button><button class="sec" id="ppcan">Cancelar</button></div></div></div>
 </main>
+<script>/* v28 sync */(function(){
+const S=Storage.prototype,oSet=S.setItem,oRem=S.removeItem,LS=localStorage;
+const CFG=k=>k.startsWith('sync_');
+const meta=()=>{try{return JSON.parse(LS.getItem('sync_meta'))||{}}catch(e){return {}}};
+const putMeta=m=>oSet.call(LS,'sync_meta',JSON.stringify(m));
+let applying=false,timer=null;
+function touch(k,del){if(applying||CFG(k))return;const m=meta();m[k]=del?{t:Date.now(),d:1}:{t:Date.now()};putMeta(m);sched()}
+S.setItem=function(k,v){const r=oSet.call(this,k,v);if(this===LS)touch(String(k));return r};
+S.removeItem=function(k){const r=oRem.call(this,k);if(this===LS)touch(String(k),1);return r};
+// IndexedDB: marcar cambios en cortes_proveedores
+const IP=IDBObjectStore.prototype,oPut=IP.put,oDel=IP.delete;
+const isDB=s=>{try{return s.transaction.db.name=='cortes_proveedores'}catch(e){return false}};
+IP.put=function(v,k){if(!applying&&isDB(this)&&v&&typeof v=='object'){v._upd=Date.now();sched()}return oPut.apply(this,arguments)};
+IP.delete=function(k){if(!applying&&isDB(this)){const m=meta();m['idb:'+k]={t:Date.now(),d:1};putMeta(m);sched()}return oDel.apply(this,arguments)};
+function idb(){return new Promise((ok,ko)=>{const r=indexedDB.open('cortes_proveedores',1);r.onupgradeneeded=()=>r.result.createObjectStore('pagos',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)})}
+async function allPagos(){const d=await idb();return new Promise((ok,ko)=>{const q=d.transaction('pagos').objectStore('pagos').getAll();q.onsuccess=()=>ok(q.result||[]);q.onerror=()=>ko(q.error)})}
+async function putPagos(a){if(!a.length)return;const d=await idb();return new Promise((ok,ko)=>{const t=d.transaction('pagos','readwrite'),s=t.objectStore('pagos');a.forEach(p=>oPut.call(s,p));t.oncomplete=ok;t.onerror=()=>ko(t.error)})}
+async function delPagos(ids){if(!ids.length)return;const d=await idb();return new Promise((ok,ko)=>{const t=d.transaction('pagos','readwrite'),s=t.objectStore('pagos');ids.forEach(i=>oDel.call(s,i));t.oncomplete=ok;t.onerror=()=>ko(t.error)})}
+async function snapshot(){const ls={};for(let i=0;i<LS.length;i++){const k=LS.key(i);if(!CFG(k))ls[k]=LS.getItem(k)}
+ return {app:'cortes-proveedores',version:28,exportado:new Date().toISOString(),pagos:await allPagos(),localStorage:ls,meta:meta()}}
+const J=s=>{try{return JSON.parse(s)}catch(e){return undefined}};
+const isObj=x=>x&&typeof x=='object'&&!Array.isArray(x);
+const PHONE=k=>k=='telefonos'||k=='pv_telefonos'||k.startsWith('telefonos_respaldo');
+function mergeVal(k,a,b,aNewer){ // a=local,b=remoto (strings)
+ const A=J(a),B=J(b);
+ if(PHONE(k)&&isObj(A)&&isObj(B)){const R={...B,...A};for(const x in B)if(!R[x])R[x]=B[x];return JSON.stringify(R)}
+ if(isObj(A)&&isObj(B)){const R=aNewer?{...B,...A}:{...A,...B};return JSON.stringify(R)}
+ if(Array.isArray(A)&&Array.isArray(B)){const seen=new Set,R=[];for(const x of (aNewer?A.concat(B):B.concat(A))){const s=JSON.stringify(x);if(!seen.has(s)){seen.add(s);R.push(x)}}return JSON.stringify(R)}
+ return aNewer?a:b}
+async function merge(R){let changed=false;const L=await snapshot();const lm=L.meta,rm=R.meta||{},M={...rm};
+ for(const k in lm)if(!M[k]||(lm[k].t||0)>=(M[k].t||0))M[k]=lm[k];
+ const lls=L.localStorage,rls=R.localStorage||{},keys=new Set([...Object.keys(lls),...Object.keys(rls)]);
+ for(const k in M)if(!k.startsWith('idb:'))keys.add(k);
+ applying=true;try{
+ for(const k of keys){if(CFG(k))continue;const a=lls[k],b=rls[k],ta=(lm[k]||{}).t||0,tb=(rm[k]||{}).t||0;let v;
+  if(M[k]&&M[k].d&&!PHONE(k)){ // borrado más reciente que cualquier escritura
+   if(a!=null&&ta>M[k].t)v=a;else if(b!=null&&tb>M[k].t)v=b;else v=null}
+  else if(a==null)v=b;else if(b==null)v=a;else v=mergeVal(k,a,b,ta>=tb);
+  if(v==null){if(a!=null){oRem.call(LS,k);changed=true}}else if(v!==a){oSet.call(LS,k,v);changed=true}}
+ const lp=new Map(L.pagos.map(p=>[p.id,p])),add=[],del=[];
+ for(const p of (R.pagos||[])){const tomb=M['idb:'+p.id];const q=lp.get(p.id);
+  if(tomb&&tomb.d&&(p._upd||0)<=tomb.t){if(q&&(q._upd||0)<=tomb.t)del.push(p.id);continue}
+  if(!q||(p._upd||0)>(q._upd||0)){add.push(p);changed=true}}
+ for(const k in M)if(k.startsWith('idb:')&&M[k].d){const id=k.slice(4),q=lp.get(id)||lp.get(+id);if(q&&(q._upd||0)<=M[k].t)del.push(q.id)}
+ await putPagos(add);if(del.length){await delPagos([...new Set(del)]);changed=true}
+ putMeta(M)}finally{applying=false}
+ return changed}
+const st=(t,ok)=>{oSet.call(LS,'sync_status',JSON.stringify({t,ok,at:new Date().toLocaleString('es-MX')}));const e=document.getElementById('syncSt');if(e)e.textContent=(ok?'✅ ':'⚠️ ')+t+' · '+new Date().toLocaleString('es-MX')};
+const cfg=()=>({url:(LS.getItem('sync_url')||'').trim(),key:(LS.getItem('sync_key')||'').trim()});
+let busy=false,again=false;
+async function sync(opts){const {url,key}=cfg();if(!url||!key)return;if(busy){again=true;return}busy=true;
+ try{st('Sincronizando…',true);
+  const r=await fetch(url+(url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&_='+Date.now());const j=await r.json();
+  if(!j.ok)throw new Error(j.error=='clave'?'Clave incorrecta':j.error);
+  const changed=await merge(j.data||{});
+  const body=JSON.stringify({key,data:await snapshot()});
+  const p=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body});const pj=await p.json();if(!pj.ok)throw new Error(pj.error);
+  st('Sincronizado',true);
+  if(changed&&opts&&opts.reload&&!sessionStorage.getItem('sync_rl')){sessionStorage.setItem('sync_rl','1');location.reload();return}
+  if(changed&&opts&&opts.manual){if(confirm('Se recibieron cambios de otro dispositivo. ¿Recargar para verlos?'))location.reload()}
+ }catch(e){st('Error: '+e.message,false)}finally{busy=false;if(again){again=false;sched()}}}
+function sched(){if(applying)return;clearTimeout(timer);timer=setTimeout(()=>sync(),4000)}
+window.cortesSync=sync;
+function ui(){const h=document.querySelector('header');if(!h)return;const d=document.createElement('details');d.style.cssText='margin:6px 12px;font-size:13px;background:#f1f5f9;border-radius:8px;padding:6px 10px';
+ const c=cfg(),s=(()=>{try{return JSON.parse(LS.getItem('sync_status'))}catch(e){return null}})();
+ d.innerHTML='<summary>🔄 Sincronización entre dispositivos <span id="syncSt" style="opacity:.75">'+(c.url?(s?((s.ok?'✅ ':'⚠️ ')+s.t+' · '+s.at):'sin sincronizar'):'no configurada')+'</span></summary>'+
+ '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px"><label>URL de Apps Script<input id="syncUrl" style="width:100%" placeholder="https://script.google.com/macros/s/.../exec"></label><label>Clave secreta<input id="syncKey" type="password" style="width:100%"></label><div><button id="syncSave">Guardar</button> <button id="syncNow" class="sec">Sincronizar ahora</button></div></div>';
+ h.after(d);d.querySelector('#syncUrl').value=c.url;d.querySelector('#syncKey').value=c.key;
+ d.querySelector('#syncSave').onclick=()=>{oSet.call(LS,'sync_url',d.querySelector('#syncUrl').value.trim());oSet.call(LS,'sync_key',d.querySelector('#syncKey').value.trim());sync({manual:true})};
+ d.querySelector('#syncNow').onclick=()=>sync({manual:true})}
+document.addEventListener('DOMContentLoaded',()=>{ui();setTimeout(()=>sync({reload:true}),800);setTimeout(()=>sessionStorage.removeItem('sync_rl'),15000)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible')sync({manual:false})});
+})();</script>
 <script>
 /*CORE-START*/
 const SHEET='1ksLCPzOJoUcp7lKqjV_BMIjvB0fPtbyK7kT6C8jPCbM';
@@ -296,7 +369,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v27</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v28</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
