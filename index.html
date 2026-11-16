@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v35</title>
+<title>Cortes semanales v36</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v35</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v36</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -218,8 +218,9 @@ function textoCorte(c,cli){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GES
   L.push('Estos trámites los pediste antes de la promo, así que van a precio normal y se pagan aparte.');}
  if(c.fase==='promo')L.push('Promo desde '+(c.promoDesdeLabel||c.promoDesde||'')+' (se descuenta del anticipo con precio de promo mientras alcance; si se acaba, precio normal).');
  L.push('');
- let last='';for(const l of c.lineas){const h=fd(l.fecha)+(l.hora?' '+l.hora:'')+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
-  let ln='• '+l.tramite+': '+(l.otros&&l.sinPrecio?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal));if(l.precioModo==='promo')ln+=(l.promoParcial?' (promo, cubierto en parte)':' (promo)');else if(l.precioModo==='normal'&&c.fase==='promo')ln+=' (precio normal)';if(l.edo==='pagado')ln+=' ✅';else if(l.edo==='parcial')ln+=' · parcial, falta '+$m(l.pend);L.push(ln)}
+ const GR=[],GM={};for(const l of c.lineas){const h=fd(l.fecha)+(c.cliente?'':' · '+l.cliente);const k=h+'|'+l.tramite+'|'+(l.otros&&l.sinPrecio?'SP':Math.round((+l.unit||0)*100))+'|'+(l.precioModo||'')+'|'+(l.promoParcial?1:0);let g=GM[k];if(!g){g=GM[k]={h,tramite:l.tramite,sp:!!(l.otros&&l.sinPrecio),unit:+l.unit||0,cantidad:0,subtotal:0,pend:0,pagado:0,precioModo:l.precioModo,promoParcial:l.promoParcial};GR.push(g)}g.cantidad+=(+l.cantidad||0);g.subtotal=Math.round((g.subtotal+(+l.subtotal||0))*100)/100;g.pend=Math.round((g.pend+(l.edo==='pagado'?0:(l.pend!=null?+l.pend:+l.subtotal||0)))*100)/100;g.pagado=Math.round((g.pagado+(+l.pagado||0))*100)/100}
+ let last='';for(const l of GR){if(l.h!=last){L.push('📅 *'+l.h+'*');last=l.h}
+  let ln='• '+l.tramite+': '+(l.sp?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal));if(l.precioModo==='promo')ln+=(l.promoParcial?' (promo, cubierto en parte)':' (promo)');else if(l.precioModo==='normal'&&c.fase==='promo')ln+=' (precio normal)';if(!l.sp&&l.pend<=0.009&&l.subtotal>0.009)ln+=' ✅';else if(l.pagado>0.009&&l.pend>0.009)ln+=' · falta '+$m(l.pend);L.push(ln)}
  L.push('');L.push('Subtotal: '+$m(c.subtotal));
  if(c.abonos.length){for(const a of c.abonos){if(cli&&clAbonoInterno(a))continue;const quien=c.cliente?'':' ('+a.cliente+')';
   if(clAbonoEsAnticipo(c,a)&&+a.monto>0){L.push('Anticipo ('+fd(a.fecha)+')'+quien+': -'+$m(a.monto));continue}
@@ -534,7 +535,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v35</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v36</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
