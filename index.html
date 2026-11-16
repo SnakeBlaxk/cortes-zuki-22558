@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales</title>
+<title>Cortes semanales v32</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v31</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v32</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -104,6 +104,7 @@ function mergeVal(k,a,b,aNewer){ // a=local,b=remoto (strings)
  if(PHONE(k)&&isObj(A)&&isObj(B)){const R={...B,...A};for(const x in B)if(!R[x])R[x]=B[x];return JSON.stringify(R)}
  if(k=='cl_rangos'||k=='pv_rangos'){const AA=isObj(A)?A:{},BB=isObj(B)?B:{};if(isObj(A)||isObj(B))return JSON.stringify(mergeRangos(AA,BB,aNewer))}
  if(k=='cl_pagos'){const AA=isObj(A)?A:{},BB=isObj(B)?B:{};if(isObj(A)||isObj(B))return JSON.stringify(mergePagosCli(AA,BB,aNewer))}
+ if(k=='cl_abono_dec'){const AA=isObj(A)?A:{},BB=isObj(B)?B:{};if(isObj(A)||isObj(B)){const R={};for(const id of new Set([...Object.keys(AA),...Object.keys(BB)])){const a=AA[id],b=BB[id];R[id]=!a?b:!b?a:((a.t||0)>=(b.t||0)?a:b)}return JSON.stringify(R)}}
  if(isObj(A)&&isObj(B)){const R=aNewer?{...B,...A}:{...A,...B};return JSON.stringify(R)}
  if(Array.isArray(A)&&Array.isArray(B)){const seen=new Set,R=[];for(const x of (aNewer?A.concat(B):B.concat(A))){const s=JSON.stringify(x);if(!seen.has(s)){seen.add(s);R.push(x)}}return JSON.stringify(R)}
  return aNewer?a:b}
@@ -165,6 +166,12 @@ function num(v){if(v==null)return 0;v=String(v).replace(/[$,\s]/g,'');if(v==''||
 function parseFecha(s){s=String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
  const m=s.match(/(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/);if(m&&MESES[m[2]])return m[3]+'-'+String(MESES[m[2]]).padStart(2,'0')+'-'+m[1].padStart(2,'0');
  const d=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(d)return d[3]+'-'+d[2].padStart(2,'0')+'-'+d[1].padStart(2,'0');return null}
+function parseHora(s){s=String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(!s)return '';
+ const t=s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.)?/);
+ if(t){let h=+t[1];const ap=(t[3]||'').replace(/[\s.]/g,'');if(ap[0]==='p'&&h<12)h+=12;if(ap[0]==='a'&&h===12)h=0;if(h>=0&&h<=23)return String(h).padStart(2,'0')+':'+t[2]}
+ const a=s.match(/(?:^|\s)(\d{1,2})\s*(a\.?\s*m\.?|p\.?\s*m\.)/);
+ if(a){let h=+a[1];const ap=a[2].replace(/[\s.]/g,'');if(ap[0]==='p'&&h<12)h+=12;if(ap[0]==='a'&&h===12)h=0;if(h>=0&&h<=23)return String(h).padStart(2,'0')+':00'}
+ return ''}
 const norm=h=>String(h||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
 // tramite: header de cantidad, etiqueta, clave santi
 const TRAM=[['ACTAS','Actas',10],['ACTAS POR DATOS','Acta por datos',70],['SEMANAS VIGENCIAS','Semanas cotizadas / vigencias',10],
@@ -190,18 +197,23 @@ function parseRows(text){const R=parseCSV(text);const M=mapCols(R[0]);const out=
   if(M.otros>=0&&String(r[M.otros]||'').trim()&&!isReset(r[M.otros])){const c=num(r[M.costo]);const _ot=r[M.otros].trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/estado\s*de\s*cuenta/.test(_ot)){const q=parseInt((_ot.match(/^(\d+)/)||[0,1])[1])||1;const pc=c>0?c/q:(g=='CANEK'?100:80);items.push({tramite:'Estado de cuenta'+(/infonavit/.test(_ot)?' Infonavit':''),cantidad:q,unit:pc,subtotal:pc*q,santi:null})}else items.push({tramite:'Otros: '+r[M.otros].trim(),cantidad:1,unit:c,subtotal:c,santi:null,otros:true,texto:r[M.otros].trim(),sinPrecio:!(c>0)})}
   out.push({fecha,cliente:cl,gestor:g,items,abono:M.abonos>=0?num(r[M.abonos]):0,subdia:M.subdia>=0?num(r[M.subdia]):0})}
  return out}
+function clEsMontoAtipico(m){m=Math.abs(+m||0);return m>=10000}
+function clAjusteEsTypo(m){m=Math.abs(+m||0);return m>=73000&&m<=73500}
 function buildCortes(rows,desde,hasta){const sel=rows.filter(r=>r.fecha>=desde&&r.fecha<=hasta);const G={};
- for(const r of sel){if(!r.items.length&&!r.abono&&!r.revisarAbono)continue;const key=r.gestor=='CANEK'?'CANEK|'+r.cliente.trim().toUpperCase():r.gestor||'SIN GESTOR';
+ for(const r of sel){if(!r.items.length&&!r.abono&&!r.revisarAbono&&!r.atipico)continue;const key=r.gestor=='CANEK'?'CANEK|'+r.cliente.trim().toUpperCase():r.gestor||'SIN GESTOR';
   (G[key]=G[key]||{id:key,gestor:r.gestor,cliente:r.gestor=='CANEK'?r.cliente.trim():null,lineas:[],abonos:[]});
-  for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,tramite:it.tramite,otros:!!it.otros,sinPrecio:!!it.sinPrecio,texto:it.texto||'',cantidad:it.cantidad,unit:u,subtotal:r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal})}
-  if(r.abono||r.revisarAbono)G[key].abonos.push({cliente:r.cliente.trim(),fecha:r.fecha,monto:r.abono||0,ent:!!r.ent,revisar:!!r.revisarAbono,nota:r.abonoNota||''})}
- return Object.values(G).map(c=>{c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0||c.abonos.some(a=>a.revisar);c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
+  for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;const st=r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal;if(clEsMontoAtipico(st)||clEsMontoAtipico(u))continue;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,hora:r.hora||it.hora||'',tramite:it.tramite,otros:!!it.otros,sinPrecio:!!it.sinPrecio,texto:it.texto||'',cantidad:it.cantidad,unit:u,subtotal:st,promo:!!it.promo,promoParcial:!!it.promoParcial,precioModo:it.precioModo||''})}
+  if(r.abono||r.revisarAbono||r.atipico)G[key].abonos.push({cliente:r.cliente.trim(),fecha:r.fecha,hora:r.hora||'',monto:r.abono||0,ent:!!r.ent,revisar:!!r.revisarAbono,nota:r.abonoNota||'',botId:r.id||'',atipico:!!r.atipico,abonoRaw:r.abonoRaw||0})}
+ return Object.values(G).map(c=>{const seen=new Set(),ab=[];for(const a of c.abonos){if(a.atipico||clEsMontoAtipico(a.abonoRaw)||clEsMontoAtipico(a.monto)){ab.push(Object.assign({},a,{monto:0,revisar:false,atipico:true,nota:a.nota||('Abono atípico $'+(a.abonoRaw||a.monto)+' ignorado, no se cuenta')}));continue}if(a.monto>0&&!a.revisar){const k=a.fecha+'|'+Math.round(a.monto*100);if(seen.has(k)){const bid=a.botId||a.id||'';const dec=(typeof clAbonoDecGet==='function')?clAbonoDecGet(bid):null;if(dec&&dec.v==='otro'){ab.push(Object.assign({},a,{dup:true,dec:'otro'}));continue}ab.push(Object.assign({},a,{montoRaw:a.monto,monto:0,revisar:!dec,dup:true,dupPend:!dec,dec:dec&&dec.v,nota:(a.nota?a.nota+' · ':'')+(dec&&dec.v==='rep'?'Marcado como repetido, no se cuenta':'posible duplicado (mismo día y monto). ¿Es otro pago o está repetido?')}));continue}seen.add(k)}ab.push(a)}c.abonos=ab;c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0||c.abonos.some(a=>a.revisar);c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
   .sort((a,b)=>a.id.localeCompare(b.id))}
 const $m=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fd=s=>{const[y,m,d]=s.split('-');return d+'/'+m+'/'+y};
-function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));L.push('');
- let last='';for(const l of c.lineas){const h=fd(l.fecha)+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
-  let ln='• '+l.tramite+': '+(l.otros&&l.sinPrecio?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal));if(c.prepago||l.edo==='pagado')ln+=' ✅';else if(l.edo==='parcial')ln+=' · parcial, falta '+$m(l.pend);L.push(ln)}
+function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));
+ if(c.fase==='pre')L.push('Antes de la promo (precios normales; no se usa el anticipo).');
+ if(c.fase==='promo')L.push('Promo desde '+(c.promoDesdeLabel||c.promoDesde||'')+' (se descuenta del anticipo con precio de promo mientras alcance; si se acaba, precio normal).');
+ L.push('');
+ let last='';for(const l of c.lineas){const h=fd(l.fecha)+(l.hora?' '+l.hora:'')+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
+  let ln='• '+l.tramite+': '+(l.otros&&l.sinPrecio?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal));if(l.precioModo==='promo')ln+=(l.promoParcial?' (promo, cubierto en parte)':' (promo)');else if(l.precioModo==='normal'&&c.fase==='promo')ln+=' (precio normal)';if(c.prepago||l.edo==='pagado')ln+=' ✅';else if(l.edo==='parcial')ln+=' · parcial, falta '+$m(l.pend);L.push(ln)}
  L.push('');L.push('Subtotal: '+$m(c.subtotal));
  if(c.abonos.length){for(const a of c.abonos)L.push((a.revisar?'⚠ ':'')+(a.ent?'Pagado al entregar ':'Abono ')+fd(a.fecha)+(c.cliente?'':' ('+a.cliente+')')+(a.revisar&&!a.monto?': '+ (a.nota||'revisar monto'):': -'+$m(a.monto)));}
  if(c.prepago)L.push('Prepago — pagado al entregar: -'+$m(c.prepagoMonto||0));if(c.saldoAnt&&Math.abs(c.saldoAnt)>0.009)L.push('Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+(c.saldoAnt>0?'':'-')+$m(Math.abs(c.saldoAnt)));L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');
@@ -214,7 +226,7 @@ const nvLs=(k,d)=>{try{if(typeof localStorage=='undefined')return d;const v=JSON
 const NV_CUT_DEF='2026-10-24';
 function nvCut(){return nvLs('nv_cutover',NV_CUT_DEF)||NV_CUT_DEF}
 // trámite (bot, normalizado) -> [etiqueta cliente, precio Santi]
-const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta por datos',70],'ACTAS POR DATOS':['Acta por datos',70],'RFC EXPRESS':['RFC económico/Express',30],'RFC CON DOMICILIO FISCAL':['RFC con domicilio fiscal',40],
+const NV_CLI={'ACTAS':['Actas',10],'ACTA':['Actas',10],'ACTA POR DATOS':['Acta por datos',70],'ACTAS POR DATOS':['Acta por datos',70],'RFC EXPRESS':['RFC económico/Express',30],'RFC CLON':['RFC económico/Express',30],'RFC ECONOMICO':['RFC económico/Express',30],'RFC ECONOMICO/EXPRESS':['RFC económico/Express',30],'RFC ECONOMICO / EXPRESS':['RFC económico/Express',30],'CLON':['RFC económico/Express',30],'RFC CON DOMICILIO FISCAL':['RFC con domicilio fiscal',40],
  'RFC CON ID/CIF':['RFC con ID/CIF',50],'RFC NORMAL':['RFC normal',70],'RFC ALTERNO':['RFC alterno',145],'ANTECEDENTES PENALES':['Antecedentes penales',70],'FECHA DE RETIRO':['Fecha de retiro',50],
  'CITAS SAT':['Citas SAT',230],'NSS':['NSS',5],'CURP':['CURP',5],'CFE':['CFE',5],'NO DERECHOHABIENTE':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA':['No derechohabiencia IMSS',5],'NO DERECHOHABIENCIA IMSS':['No derechohabiencia IMSS',5],'SEMANAS COTIZADAS':['Semanas cotizadas',10],'SEMANAS':['Semanas cotizadas',10],
  'VIGENCIA DE DERECHOS':['Vigencia de derechos',10],'VIGENCIA':['Vigencia de derechos',10],'VIGENCIAS':['Vigencia de derechos',10],'RESETEO':['Reseteo',150],'CADENA':['Cadena',null],'ESTADO DE CUENTA':['Estado de cuenta',null],'ESTADO DE CUENTA INFONAVIT':['Estado de cuenta',null],'RESUMEN INFONAVIT':['Estado de cuenta',null],'NO DEUDOR ALIMENTARIO':['No deudor alimentario',null],'NO DEUDOR ALIMENTICIO':['No deudor alimentario',null],'CONSTANCIA DE NO DEUDOR ALIMENTARIO':['No deudor alimentario',null]};
@@ -233,11 +245,39 @@ function nvCostGet(cp,col){if(!col||!cp)return {has:false,cost:0};const al={'NO 
  const f=Object.keys(cp).find(x=>keys.includes(norm(x)));return f!=null?{has:true,cost:cp[f]}:{has:false,cost:0}}
 function nvMap(){return Object.assign({},NV_MAP_DEF,nvLs('nv_map',{}))}
 function nvMapGet(M,t){const k=Object.keys(M).find(x=>norm(x)==norm(t));return k!=null?M[k]:null}
+// Precios de promoción por cliente (se aplican al GENERAR el corte; no se reescriben cortes ya guardados en el historial).
+// desde: inicio en hora de CDMX (America/Mexico_City). Si un trámite no trae hora y cae ese mismo día, cuenta como promo.
+// precios: unitarios de promo. normales: unitarios cuando se acaba el anticipo.
+// anticipo.id: abono que solo se aplica a trámites desde `desde`. La promo dura mientras quede saldo de ese anticipo (mientrasAnticipo).
+var PROMOS=[
+ {cliente:'ARTURO',desde:'2026-11-13T08:00',precios:{'Actas':15,'RFC clon':25},normales:{'Actas':30,'RFC clon':50,'RFC Express':50},anticipo:{id:'A21'},mientrasAnticipo:true}
+];
+function promoCliKey(cliente,gestor){const g=norm(gestor||'CANEK'),c=String(cliente||'').trim();return g==='CANEK'?'CANEK|'+c.toUpperCase():(g||'SIN GESTOR')}
+function promoDeId(id){const n=norm(String(id||'').replace(/^CANEK\|/,''));return PROMOS.find(p=>promoCliKey(p.cliente,p.gestor||'CANEK')===id||norm(p.cliente)===n)||null}
+function promoDesde(p){const m=String(p&&p.desde||'').match(/(\d{4}-\d{2}-\d{2})(?:[T\s](\d{1,2}):(\d{2}))?/);return m?{fecha:m[1],hora:m[2]?(String(+m[2]).padStart(2,'0')+':'+m[3]):'08:00'}:{fecha:'',hora:'08:00'}}
+function promoDesdeLabel(p){const d=promoDesde(p);return d.fecha?fd(d.fecha)+' '+d.hora:''}
+function clEnPromo(p,fecha,hora){if(!p||!fecha)return false;const d=promoDesde(p);if(fecha>d.fecha)return true;if(fecha<d.fecha)return false;if(!hora)return true;return hora>=d.hora}
+function promoEsRfcDefault(t){const n=norm(String(t||'').replace(/^OTROS:\s*/,''));const s=n.replace(/^RFC\s+/,'').replace(/[\/,]/g,' ').replace(/\s+/g,' ').trim();if(n==='CLON'||n==='EXPRESS'||n==='ECONOMICO')return true;const parts=s.split(' ').filter(Boolean);return parts.length>0&&parts.every(p=>p==='CLON'||p==='EXPRESS'||p==='ECONOMICO')}function promoAlias(t){const n=norm(String(t||'').replace(/^OTROS:\s*/,''));if(n==='ACTA'||n==='ACTAS')return 'ACTAS';if(promoEsRfcDefault(t))return 'RFC CLON';return n}
+function promoLookup(map,tramite){if(!map)return null;const k=promoAlias(tramite);for(const name of Object.keys(map)){if(promoAlias(name)===k&&map[name]!=null&&map[name]!=='')return +map[name]}return null}
+function promoEsAnticipo(p,pago){if(!p||!p.anticipo)return false;const ids=[].concat(p.anticipo.id||[],p.anticipo.ids||[]).map(String);const cands=[pago&&pago.botId,pago&&pago.id,String(pago&&pago.id||'').replace(/^botid:/,'')].filter(Boolean).map(String);return cands.some(x=>ids.includes(x))}
+function promoRelacionadoAnticipo(p,a,pagosAnt){if(promoEsAnticipo(p,a))return true;const mon=+(a&&(a.montoRaw||a.abonoRaw||a.monto)||0);return (pagosAnt||[]).some(x=>x.fecha===a.fecha&&Math.abs((+x.monto||0)-mon)<0.009)}
+function promoPagoFecha(p,pago){if(promoEsAnticipo(p,pago)){const d=promoDesde(p).fecha;if(d&&pago.fecha<d)return d}return pago.fecha}
+function promoAnticipoMonto(id,p){if(typeof clPagosAll!=='function')return 0;return clPagosAll(id,null).filter(x=>promoEsAnticipo(p,x)).reduce((s,x)=>s+(+x.monto||0),0)}
+function clAplicarPromoPrecios(rows){if(!rows)return rows;const out=rows.map(r=>{const x=Object.assign({},r);if(x.items)x.items=x.items.map(it=>{const y=Object.assign({},it);if(y.unitSheet==null&&y.unit!=null)y.unitSheet=y.unit;if(y.subSheet==null&&y.subtotal!=null)y.subSheet=y.subtotal;if(y.unitSheet!=null)y.unit=y.unitSheet;if(y.subSheet!=null)y.subtotal=y.subSheet;delete y.promo;delete y.promoParcial;delete y.precioModo;return y});return x});
+ const by={};for(const r of out){const id=(typeof clRowId==='function')?clRowId(r):promoCliKey(r.cliente,r.gestor);(by[id]=by[id]||[]).push(r)}
+ for(const id of Object.keys(by)){const p=promoDeId(id);if(!p)continue;const mientras=p.mientrasAnticipo!==false&&!!p.anticipo;let cred=mientras?promoAnticipoMonto(id,p):Infinity;
+  const its=[];for(const r of by[id]){if(!r.items||!r.items.length||!clEnPromo(p,r.fecha,r.hora))continue;for(const it of r.items)its.push({r,it})}
+  its.sort((a,b)=>a.r.fecha<b.r.fecha?-1:a.r.fecha>b.r.fecha?1:((a.r.hora||'')<(b.r.hora||'')?-1:(a.r.hora||'')>(b.r.hora||'')?1:0));
+  for(const {it} of its){const q=it.cantidad||1;if(mientras&&cred<=0.009){const n=promoLookup(p.normales,it.tramite);if(n!=null){it.unit=n;it.subtotal=Math.round(n*q*100)/100}it.promo=false;it.precioModo='normal';continue}
+   const pp=promoLookup(p.precios,it.tramite);if(pp!=null){it.unit=pp;it.subtotal=Math.round(pp*q*100)/100;it.promo=true;it.precioModo='promo'}else it.precioModo='normal';
+   if(mientras){const sub=+it.subtotal||0;if(cred+0.009<sub)it.promoParcial=true;cred=Math.round((cred-sub)*100)/100;if(cred<0)cred=0}}}
+ return out}
 function nvParse(text){const R=parseCSV(text);const H=R[0].map(norm);const ix=n=>H.indexOf(n);
- const I={f:ix('FECHA'),c:ix('CLIENTE'),g:ix('GESTOR'),t:ix('TRAMITE'),q:ix('CANTIDAD'),p:ix('PRECIO'),s:ix('SUBTOTAL'),pr:ix('PROVEEDOR'),n:ix('NOTAS'),id:ix('ID')};
+ const I={f:ix('FECHA'),c:ix('CLIENTE'),g:ix('GESTOR'),t:ix('TRAMITE'),q:ix('CANTIDAD'),p:ix('PRECIO'),s:ix('SUBTOTAL'),pr:ix('PROVEEDOR'),n:ix('NOTAS'),id:ix('ID'),h:ix('HORA')};
  const out=[];for(const r of R.slice(1)){const fecha=parseFecha(r[I.f]);if(!fecha)continue;const t=String(r[I.t]||'').trim();if(!t)continue;
   const pv=String(r[I.p]==null?'':r[I.p]).trim(),q=num(r[I.q])||1;
-  out.push({fecha,cliente:String(r[I.c]||'').trim(),gestor:norm(r[I.g]),tramite:t,cantidad:q,precio:pv===''?null:num(pv),subtotal:String(r[I.s]||'').trim()===''?null:num(r[I.s]),prov:String(r[I.pr]||'').trim().toUpperCase().replace(/\s+/g,' '),notas:r[I.n]||'',id:r[I.id]||''})}
+  const hora=parseHora(r[I.f])||(I.h>=0?parseHora(r[I.h]):'');
+  out.push({fecha,hora,cliente:String(r[I.c]||'').trim(),gestor:norm(r[I.g]),tramite:t,cantidad:q,precio:pv===''?null:num(pv),subtotal:String(r[I.s]||'').trim()===''?null:num(r[I.s]),prov:String(r[I.pr]||'').trim().toUpperCase().replace(/\s+/g,' '),notas:r[I.n]||'',id:r[I.id]||''})}
  return out}
 function nvCostos(text){const R=parseCSV(text);if(!R.length)return {};
  const isH=r=>r.some(c=>norm(c)==='PROVEEDOR');let i0=isH(R[0])?0:R.findIndex(isH);if(i0<0)i0=0;
@@ -267,13 +307,13 @@ function nvCliRows(N){N=nvCliFix(N);const pS=new Set();return N.filter(x=>norm(x
   const pays=[...nn.matchAll(/\b(?:pago|abono)\s*\$\s*([\d.,]+)(?:\s*\([^)]*\))?\s*recibido/ig),...nn.matchAll(/pagado con saldo a favor\s*\$\s*([\d.,]+)/ig)];
   let pe=0;for(const pm of pays){const v=num(pm[1]);if(!v)continue;const pk=x.fecha+'|'+norm(cliente)+'|'+pm[0];if(pS.has(pk))continue;pS.add(pk);pe+=v}
   if(nt==='ABONO'||norm(t0)==='ABONO'){const raw=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio:null);const mon=raw==null?0:Math.abs(num(raw));const sin=raw==null||!(mon>0);const sospe=mon>=10000;
-   return {fecha:x.fecha,cliente,gestor,items:[],abono:sin||sospe?0:mon,ent:!(sin||sospe)&&mon>0,subdia:0,src:'bot',revisarAbono:sin||sospe,abonoRaw:mon,abonoNota:sin?'Abono sin monto':(sospe?'Abono con monto atípico $'+mon:'')}}
+   return {fecha:x.fecha,hora:x.hora||'',cliente,gestor,items:[],abono:sin||sospe?0:mon,ent:!(sin||sospe)&&mon>0,subdia:0,src:'bot',id:x.id||'',revisarAbono:sin,atipico:!!sospe,abonoRaw:mon,abonoNota:sin?'Abono sin monto':(sospe?'Abono atípico $'+mon+' ignorado (posible error de decimal / OCR), no se cuenta':'')}}
   const it={cantidad:x.cantidad,src:'bot'};
   if(cat&&cat[0]=='Reseteo'){Object.assign(it,{tramite:'Reseteo',unit:RESETEO,subtotal:RESETEO*x.cantidad,santi:RESETEO,reseteo:true})}
   else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
    if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
    else Object.assign(it,{tramite:'Otros: '+t0,unit,subtotal:sub,santi:null,otros:true,texto:t0+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
-  return {fecha:x.fecha,cliente,gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot'}})}
+  return {fecha:x.fecha,hora:x.hora||'',cliente,gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot',id:x.id||''}})}
 function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO'&&!/^\s*costo interno/i.test(String(x.notas||''))).map(x=>{const p=nvProvName(x.prov);const t0=String(x.tramite||'').trim(),t=t0.replace(/\s*\(fuera de cat[aá]logo\)\s*/ig,' ').replace(/\s+/g,' ').trim();
   const vb=norm(t)=='RFC NORMAL'&&/via busqueda/.test(sinAc(String(x.notas||'')).toLowerCase());const col=vb?'CLON':norm(nvMapGet(M,t)||nvMapGet(M,t0)||'');const lab=vb?'RFC verificable':(col?(NV_PLAB[col]||col):t0);
   const cp=C[p]||{};const g=nvCostGet(cp,col);const cost=g.has?g.cost:0;const st=Math.round(cost*x.cantidad*100)/100;
@@ -304,34 +344,82 @@ function telGet(id){const T=ls('telefonos',{});if(T[id])return T[id];const n=tel
  const g=n.split('|')[0];if(n.indexOf('|')<0)for(const k in T)if(telN(k).replace(/\s+\d+$/,'')==g)return T[k];return ''}
 function telSet(id,v){const T=ls('telefonos',{});v=String(v||'').replace(/\D/g,'');if(v){T[id]=v;T[telN(id)]=v}else{delete T[id];for(const k of Object.keys(T))if(telN(k)==telN(id))delete T[k]}ss('telefonos',T)}
 let CORTES=[],CROWS=null;const clGen=()=>[document.getElementById('desde').value,document.getElementById('hasta').value];
-function clBuild(){const[d,h]=clGen();const cr=ls('cl_rangos',{});const L=buildCortes(CROWS,d,h);const out=L.map(c=>{const r=rangoGet(cr[c.id],d,h);if(!r)return c;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
- for(const id in cr){if(out.find(c=>c.id==id))continue;const r=rangoGet(cr[id],d,h);if(!r)continue;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}
- let hs=clArr()||'0000-01-01';for(const c of out)if(c.desde&&c.desde<hs)hs=c.desde;const hist=CROWS?buildCortes(CROWS,hs,'9999-12-31'):[];const HM={};for(const x of hist)HM[x.id]=x;out.forEach(c=>clArrastre(c,HM[c.id]));return out.sort((a,b)=>a.id.localeCompare(b.id))}
+function clPackFase(base,lineas,abonos,desde,hasta,fase,p,custom){const c=Object.assign({},base,{lineas:lineas,abonos:abonos||[],desde:desde,hasta:hasta,fase:fase,ckey:[base.id,fase,desde,hasta].join(':'),promoDesde:p&&p.desde,promoDesdeLabel:p?promoDesdeLabel(p):'',custom:!!custom});
+ c.subtotal=c.lineas.reduce((s,l)=>s+(+l.subtotal||0),0);c.totalAbonos=c.abonos.reduce((s,a)=>s+(+a.monto||0),0);c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0||c.abonos.some(a=>a.revisar);c.total=c.subtotal-c.totalAbonos;return c}
+function clSepararPromo(c){const p=promoDeId(c.id);if(!p)return [c];const preL=c.lineas.filter(l=>!clEnPromo(p,l.fecha,l.hora)),proL=c.lineas.filter(l=>clEnPromo(p,l.fecha,l.hora));
+ if(!preL.length&&!proL.length)return [c];if(!preL.length){const pd=promoDesde(p);const d0=c.desde>pd.fecha?c.desde:pd.fecha;return [clPackFase(c,proL,(c.abonos||[]).filter(a=>clEnPromo(p,a.fecha,a.hora)||promoEsAnticipo(p,a)),d0,c.hasta,'promo',p,c.custom)]}
+ if(!proL.length)return [clPackFase(c,preL,c.abonos||[],c.desde,c.hasta,'pre',p,c.custom)];
+ const d=promoDesde(p);const preLast=preL.reduce((h,l)=>l.fecha>h?l.fecha:h,c.desde);const dt=new Date(d.fecha+'T12:00:00');dt.setDate(dt.getDate()-1);const cap=c.hasta<d.fecha?c.hasta:dt.toISOString().slice(0,10);const preH=preLast>cap?preLast:cap;const proD=proL.reduce((h,l)=>l.fecha<h?l.fecha:h,c.hasta);
+ const ants=(c.abonos||[]).filter(a=>promoEsAnticipo(p,a)&&a.monto>0);const preA=(c.abonos||[]).filter(a=>!promoEsAnticipo(p,a)&&!promoRelacionadoAnticipo(p,a,ants)&&!clEnPromo(p,a.fecha,a.hora));
+ const proA=(c.abonos||[]).filter(a=>promoEsAnticipo(p,a)||clEnPromo(p,a.fecha,a.hora));
+ return [clPackFase(c,preL,preA,c.desde,preH,'pre',p,c.custom),clPackFase(c,proL,proA,proD,c.hasta,'promo',p,c.custom)]}
+function clInyectarPrePromo(out,rows,hs){const seen=new Set(out.filter(c=>c.fase==='pre').map(c=>c.id));
+ for(const pr of PROMOS){const id=promoCliKey(pr.cliente,pr.gestor||'CANEK');if(seen.has(id))continue;const d=promoDesde(pr);if(!d.fecha)continue;const dt=new Date(d.fecha+'T12:00:00');dt.setDate(dt.getDate()-1);const preH=dt.toISOString().slice(0,10);const preD=hs&&hs<=preH?hs:preH;if(preD>preH)continue;
+  const built=buildCortes(rows,preD,d.fecha).find(x=>x.id==id);if(!built)continue;const preL=built.lineas.filter(l=>!clEnPromo(pr,l.fecha,l.hora));if(!preL.length)continue;
+  const ants=(built.abonos||[]).filter(a=>promoEsAnticipo(pr,a)&&a.monto>0);const preA=(built.abonos||[]).filter(a=>!promoEsAnticipo(pr,a)&&!promoRelacionadoAnticipo(pr,a,ants)&&!clEnPromo(pr,a.fecha,a.hora));
+  const last=preL.reduce((h,l)=>l.fecha>h?l.fecha:h,preD);const preHasta=last>preH?last:preH;out.push(clPackFase(built,preL,preA,preD,preHasta,'pre',pr,false))}
+ return out}
+function clColocarAbonosPromo(out,HM){for(const c of out){if(c.fase!=='promo')continue;const p=promoDeId(c.id);if(!p)continue;const hist=HM[c.id];const ants=((hist&&hist.abonos)||[]).filter(a=>promoEsAnticipo(p,a)||promoRelacionadoAnticipo(p,a,((hist&&hist.abonos)||[]).filter(x=>promoEsAnticipo(p,x)&&x.monto>0)));
+  const first=c.desde<=promoDesde(p).fecha;for(const a of ants){if((c.abonos||[]).some(x=>(x.botId&&x.botId===a.botId)||(x.id&&x.id===a.id)))continue;if(first||a.revisar||a.dup||a.dupPend)(c.abonos=c.abonos||[]).push(a)}c.totalAbonos=c.abonos.reduce((s,a)=>s+(+a.monto||0),0);c.revisar=!!((c.otros&&c.otros.length)||c.abonos.some(a=>a.revisar))}return out}
+function clBuild(){const[d,h]=clGen();const rows=clAplicarPromoPrecios(CROWS||[]);const cr=ls('cl_rangos',{});const L=buildCortes(rows,d,h);let out=L.map(c=>{const r=rangoGet(cr[c.id],d,h);if(!r)return c;const x=buildCortes(rows,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
+ for(const id in cr){if(out.find(c=>c.id==id))continue;const r=rangoGet(cr[id],d,h);if(!r)continue;const x=buildCortes(rows,r[0],r[1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}
+ let hs=clArr()||'0000-01-01';for(const c of out)if(c.desde&&c.desde<hs)hs=c.desde;
+ const hist=rows.length?buildCortes(rows,'0000-01-01','9999-12-31'):[];const HM={};for(const x of hist)HM[x.id]=x;
+ const split=[];for(const c of out)split.push.apply(split,clSepararPromo(c));out=clColocarAbonosPromo(clInyectarPrePromo(split,rows,hs),HM);
+ out.forEach(c=>clArrastre(c,HM[c.id],hs));return out.sort((a,b)=>a.id.localeCompare(b.id)||((a.fase==='pre'&&b.fase!=='pre')?-1:(a.fase!=='pre'&&b.fase==='pre')?1:a.desde<b.desde?-1:a.desde>b.desde?1:0))}
 const clEsPre=id=>!!ls('cl_prepago',{})[telN(id)];function clSetPre(id,v){const P=ls('cl_prepago',{});if(v)P[telN(id)]=true;else delete P[telN(id)];ss('cl_prepago',P);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 const ARR_DEF='2026-10-17';const clArr=()=>ls('cl_arrastre',ARR_DEF)||ARR_DEF;
 function diaAntes(s){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)}
 function clPagoId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function clPagosMigrar(){if(typeof window.migrarPagosCli==='function')window.migrarPagosCli();return ls('cl_pagos',{})}
-function clPagosApp(id){return (clPagosMigrar()[id]||[]).filter(p=>!p.d&&+p.monto>0)}
+function clPagoVigente(p,desde){if(!p||p.d||!(+p.monto>0))return false;if(desde&&p.fecha<desde)return false;const m=String(p.id||'').match(/^leg:.+:(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2}):/);if(m&&desde&&m[2]<desde)return false;return true}
+function clPagosApp(id,desde){return (clPagosMigrar()[id]||[]).filter(p=>clPagoVigente(p,desde))}
 function clRowId(r){return r.gestor=='CANEK'?'CANEK|'+String(r.cliente||'').trim().toUpperCase():(r.gestor||'SIN GESTOR')}
-function clAbonosBot(id){if(!CROWS)return[];const out=[];let i=0;for(const r of CROWS){if(clRowId(r)!==id||!(r.abono>0))continue;out.push({id:'bot:'+id+':'+r.fecha+':'+(+r.abono)+':'+(r.ent?'e':'a')+':'+(i++),monto:+r.abono,fecha:r.fecha,nota:r.abonoNota||(r.ent?'Pagado al entregar':'Abono'),src:'bot'})}return out}
-function clPagosAll(id){const app=clPagosApp(id),bot=clAbonosBot(id),used=new Set(),out=app.map(p=>Object.assign({},p));for(const p of out){const j=bot.findIndex((b,i)=>!used.has(i)&&b.fecha===p.fecha&&Math.abs(b.monto-p.monto)<0.009);if(j>=0)used.add(j)}bot.forEach((b,i)=>{if(!used.has(i))out.push(b)});return out.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.ts||0)-(b.ts||0))}
+function clAbonoDecGet(bid){if(!bid)return null;const D=ls('cl_abono_dec',{});return D[bid]||null}
+function clSetAbonoDec(bid,v){if(!bid)return;const D=ls('cl_abono_dec',{});D[bid]={v:v,t:Date.now()};ss('cl_abono_dec',D);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
+function clAbonosBot(id,desde){if(!CROWS)return[];const out=[],seen=new Set();let i=0;for(const r of CROWS){if(clRowId(r)!==id)continue;if(r.atipico||clEsMontoAtipico(r.abonoRaw)||clEsMontoAtipico(r.abono))continue;if(!(r.abono>0))continue;if(desde&&r.fecha<desde)continue;const k=r.fecha+'|'+Math.round(+r.abono*100);if(seen.has(k)){const dec=clAbonoDecGet(r.id);if(!(dec&&dec.v==='otro'))continue}else seen.add(k);out.push({id:r.id?('botid:'+r.id):('bot:'+id+':'+r.fecha+':'+(+r.abono)+':'+(r.ent?'e':'a')+':'+(i++)),monto:+r.abono,fecha:r.fecha,nota:r.abonoNota||(r.ent?'Pagado al entregar':'Abono'),src:'bot',botId:r.id||''})}return out}
+function clPagosAll(id,desde){const app=clPagosApp(id,desde),bot=clAbonosBot(id,desde),used=new Set(),out=app.map(p=>Object.assign({},p));for(const p of out){const j=bot.findIndex((b,i)=>!used.has(i)&&b.fecha===p.fecha&&Math.abs(b.monto-p.monto)<0.009);if(j>=0)used.add(j)}bot.forEach((b,i)=>{if(!used.has(i))out.push(b)});return out.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.ts||0)-(b.ts||0))}
 function clPagoAdd(id,p){const M=clPagosMigrar();(M[id]=M[id]||[]).push({id:p.id||clPagoId(),monto:+p.monto,fecha:p.fecha,nota:p.nota||'',src:'app',ts:Date.now()});ss('cl_pagos',M)}
 function clPagoDel(id,pid){const M=clPagosMigrar();const x=(M[id]||[]).find(p=>p.id===pid);if(x){x.d=1;x.ts=Date.now();ss('cl_pagos',M)}}
 function clPagoDelRango(id,d,h){const M=clPagosMigrar();let ch=false;for(const p of(M[id]||[])){if(p.d)continue;if(p.fecha>=d&&p.fecha<=h){p.d=1;p.ts=Date.now();ch=true}}if(ch)ss('cl_pagos',M)}
 function clFifo(lineas,pagos){const L=lineas.map(l=>Object.assign({},l,{pagado:0,pend:Math.round((+l.subtotal||0)*100)/100,edo:'no'}));let cred=0;for(const p of pagos){let left=Math.round((+p.monto||0)*100)/100;for(const l of L){if(left<=0.009)break;if(l.pend<=0.009)continue;const use=Math.min(l.pend,left);l.pagado=Math.round((l.pagado+use)*100)/100;l.pend=Math.round((l.pend-use)*100)/100;left=Math.round((left-use)*100)/100}cred=Math.round((cred+left)*100)/100}for(const l of L)l.edo=l.pend<=0.009?'pagado':l.pagado>0.009?'parcial':'no';return{lineas:L,cred}}
-function clArrastre(c,hist){const A=ls('cl_ajuste',{})[c.id]||{};c.prepago=clEsPre(c.id);
- const H=((hist&&hist.lineas)||c.lineas||[]).slice();const ord=H.map((l,i)=>({l,i}));ord.sort((a,b)=>a.l.fecha<b.l.fecha?-1:a.l.fecha>b.l.fecha?1:a.i-b.i);
- const {lineas:F,cred}=clFifo(ord.map(x=>x.l),c.prepago?[]:clPagosAll(c.id));const bag=F.map(l=>({l,used:false}));
- for(const l of c.lineas){const j=bag.findIndex(x=>!x.used&&x.l.fecha===l.fecha&&x.l.cliente===l.cliente&&x.l.tramite===l.tramite&&x.l.cantidad===l.cantidad&&Math.abs(x.l.subtotal-l.subtotal)<0.009);
+function clPagoCerrado(p,t){if(!p||!t)return false;const m=String(p.id||'').match(/^leg:.+:(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2}):/);return !!(m&&m[2]<t)}
+function clPagoEsAnterior(p,t,promo){if(!p||!t)return false;if(clPagoCerrado(p,t))return true;const f=promo?promoPagoFecha(promo,p):(p.fecha||'');return !!(f&&f<t)}
+function clArrastre(c,hist,hs){const A=ls('cl_ajuste',{})[c.id]||{};c.prepago=clEsPre(c.id);
+ const promo=promoDeId(c.id);let H=((hist&&hist.lineas)||c.lineas||[]).slice();
+ const a0=clArr()||hs||c.desde||'';
+ let pagosAll=c.prepago?[]:clPagosAll(c.id,null);
+ if(promo){if(c.fase==='pre'){H=H.filter(l=>!clEnPromo(promo,l.fecha,l.hora));pagosAll=pagosAll.filter(x=>!promoEsAnticipo(promo,x))}else if(c.fase==='promo'){H=H.filter(l=>clEnPromo(promo,l.fecha,l.hora));pagosAll=pagosAll.filter(x=>promoEsAnticipo(promo,x))}}
+ if(A.ignorar&&a0){H=H.filter(l=>l.fecha>=a0);pagosAll=pagosAll.filter(p=>!clPagoEsAnterior(p,a0,promo))}
+ const aj=clAjusteEsTypo(A.monto)?0:(+A.monto||0);
+ const Hold=H.filter(l=>l.fecha<c.desde);
+ const Pcerr=pagosAll.filter(p=>clPagoCerrado(p,c.desde));
+ const PopenOld=pagosAll.filter(p=>!clPagoCerrado(p,c.desde)&&clPagoEsAnterior(p,c.desde,promo));
+ const cerrF=clFifo(Hold,Pcerr);
+ const oldF=clFifo(cerrF.lineas,PopenOld);let deuda=oldF.lineas.reduce((s,l)=>s+(+l.pend||0),0);
+ let credIni=oldF.cred||0;
+ if(!A.ignorar&&aj>0)deuda=Math.round((deuda+aj)*100)/100;
+ if(!A.ignorar&&aj<0){const fav=-aj;const use=Math.min(deuda,fav);deuda=Math.round((deuda-use)*100)/100;credIni=Math.round((credIni+fav-use)*100)/100}
+ let Hcur=H.filter(l=>l.fecha>=c.desde),pagos=pagosAll.filter(p=>!clPagoEsAnterior(p,c.desde,promo));
+ if(deuda>0.009)Hcur=[{fecha:'0000-01-01',hora:'',cliente:c.cliente,tramite:'Saldo anterior',cantidad:1,unit:deuda,subtotal:deuda,otros:false}].concat(Hcur);
+ if(credIni>0.009)pagos=[{id:'ajuste:'+c.id,monto:credIni,fecha:'0000-01-01',nota:'Saldo inicial a favor',src:'ajuste'}].concat(pagos);
+ const ord=Hcur.map((l,i)=>({l,i}));ord.sort((a,b)=>a.l.fecha<b.l.fecha?-1:a.l.fecha>b.l.fecha?1:((a.l.hora||'')<(b.l.hora||'')?-1:(a.l.hora||'')>(b.l.hora||'')?1:a.i-b.i));
+ const {lineas:F,cred}=clFifo(ord.map(x=>x.l),pagos);const bag=F.map(l=>({l,used:false}));
+ for(const l of c.lineas){const j=bag.findIndex(x=>!x.used&&x.l.fecha===l.fecha&&(x.l.hora||'')===(l.hora||'')&&x.l.cliente===l.cliente&&x.l.tramite===l.tramite&&x.l.cantidad===l.cantidad&&Math.abs(x.l.subtotal-l.subtotal)<0.009);
   if(j>=0){bag[j].used=true;const h=bag[j].l;l.pagado=c.prepago?l.subtotal:h.pagado;l.pend=c.prepago?0:h.pend;l.edo=c.prepago?'pagado':h.edo}else{l.pagado=c.prepago?l.subtotal:0;l.pend=c.prepago?0:l.subtotal;l.edo=c.prepago?'pagado':'no'}}
- let ant=0,pagAnt=0,pagPer=0,cargos=0,ab=0;const a0=clArr()||'';
- for(const l of F){if(l.fecha<c.desde){cargos+=l.subtotal;ant+=c.prepago?0:l.pend;pagAnt+=l.pagado}else if(l.fecha<=c.hasta)pagPer+=l.pagado}
- if(hist&&hist.abonos)ab=hist.abonos.filter(x=>x.monto>0&&x.fecha<c.desde&&x.fecha>=a0).reduce((s,x)=>s+x.monto,0);
+ let ant=0,pagAnt=0,pagPer=0,cargos=0,ab=0;
+ for(const l of oldF.lineas){cargos+=l.subtotal;pagAnt+=l.pagado}
+ for(const l of F){if(l.fecha<c.desde)ant+=c.prepago?0:l.pend;else if(l.fecha<=c.hasta)pagPer+=l.pagado}
+ if(hist&&hist.abonos)ab=hist.abonos.filter(x=>x.monto>0&&!x.atipico&&x.fecha<c.desde&&x.fecha>=a0&&!(promo&&promoEsAnticipo(promo,x)&&c.fase==='pre')).reduce((s,x)=>s+x.monto,0);
  if(c.prepago){c.saldoAnt=0;c.prepagoMonto=Math.round((c.subtotal)*100)/100;c.total=0;c.pagado=Math.round(c.subtotal*100)/100}
- else{c.prepagoMonto=0;c.saldoAnt=A.ignorar?Math.round((+A.monto||0)*100)/100:Math.round((ant+(+A.monto||0))*100)/100;const pendPer=c.lineas.reduce((s,l)=>s+(+l.pend||0),0);c.pagado=Math.round(pagPer*100)/100;c.total=(Math.abs(c.saldoAnt)<0.009&&pendPer<=0.009&&cred>0.009)?Math.round((-cred)*100)/100:Math.round((c.saldoAnt+pendPer)*100)/100}
- c.arr={cargos:Math.round(cargos*100)/100,ab:Math.round(ab*100)/100,pg:Math.round(pagAnt*100)/100,aj:+A.monto||0,ign:!!A.ignorar};c.texto=textoCorte(c);return c}
-function clSetAjuste(id,o){const A=ls('cl_ajuste',{});if(!o||(!o.ignorar&&!o.monto))delete A[id];else A[id]=o;ss('cl_ajuste',A);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
+ else{c.prepagoMonto=0;c.saldoAnt=A.ignorar?0:Math.round(ant*100)/100;const pendPer=c.lineas.reduce((s,l)=>s+(+l.pend||0),0);c.pagado=Math.round(pagPer*100)/100;
+  const pf=p=>promo&&c.fase==='promo'?promoPagoFecha(promo,p):p.fecha;
+  const poolH=pagos.filter(p=>pf(p)<=c.hasta).reduce((s,p)=>s+(+p.monto||0),0);const cargosH=F.filter(l=>l.fecha<=c.hasta).reduce((s,l)=>s+(+l.subtotal||0),0);const credH=Math.max(0,Math.round((poolH-cargosH)*100)/100);
+  const poolB=pagos.filter(p=>pf(p)<c.desde).reduce((s,p)=>s+(+p.monto||0),0);const cargosB=F.filter(l=>l.fecha<c.desde).reduce((s,l)=>s+(+l.subtotal||0),0);const credB=Math.max(0,Math.round((poolB-cargosB)*100)/100);
+  if(!A.ignorar&&credB>0.009)c.saldoAnt=Math.round(((+c.saldoAnt||0)-credB)*100)/100;
+  const base=Math.max(0,c.saldoAnt)+pendPer;c.total=(base<=0.009&&credH>0.009)?Math.round((-credH)*100)/100:Math.round(base*100)/100}
+ c.arr={cargos:Math.round(cargos*100)/100,ab:Math.round(ab*100)/100,pg:Math.round(pagAnt*100)/100,aj:aj,ign:!!A.ignorar};c.texto=textoCorte(c);return c}
+function clSetAjuste(id,o){const A=ls('cl_ajuste',{});if(o&&clAjusteEsTypo(o.monto))o={ignorar:!!o.ignorar,monto:0};if(!o||(!o.ignorar&&!o.monto))delete A[id];else A[id]=o;ss('cl_ajuste',A);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 function txtSaldoAnt(c){return c.saldoAnt&&Math.abs(c.saldoAnt)>0.009?'• Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+$m(Math.abs(c.saldoAnt)):null}
 function textoConfirmacion(c,pagos){const n=c.cliente||c.gestor,u=pagos[pagos.length-1],pag=pagos.reduce((a,p)=>a+(+p.monto||0),0),ab=(c.totalAbonos||0)+pag,sd=Math.round((c.total)*100)/100;
  const L=['Hola '+n+', ¡muchas gracias! 🙏','','Hemos recibido tu pago de *'+$m(u.monto)+'* ('+fd(u.fecha)+').','','Corte del '+fd(c.desde)+' al '+fd(c.hasta)+':','• Total del periodo: '+$m(c.subtotal)];const sa=txtSaldoAnt(c);if(sa)L.push(sa);L.push('• Total a pagar: '+$m(c.subtotal+(c.saldoAnt||0)),'• Total abonado: '+$m(ab),'');
@@ -351,19 +439,19 @@ document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 function telPedir(c,el){let t=telGet(c.id);if(t)return t;const v=(prompt('Teléfono WhatsApp de '+(c.cliente||c.gestor)+' (con 52, ej. 52XXXXXXXXXX):','52')||'').replace(/\D/g,'');if(v.length<10){const x=el.querySelector('.cfg');x.hidden=false;x.scrollIntoView({behavior:'smooth',block:'center'});alert('Falta el teléfono de '+(c.cliente||c.gestor)+'. Captúralo en ⚙️ y vuelve a intentar.');return null}telSet(c.id,v);return v}
-const OPEN=new Set(ls('cl_open',[]));const saveOpen=()=>ss('cl_open',[...OPEN]);
+const OPEN=new Set(ls('cl_open',[]));const saveOpen=()=>ss('cl_open',[...OPEN]);const clKey=c=>c.ckey||[c.id,c.fase||'',c.desde,c.hasta].join(':');
 function render(){const box=document.getElementById('cortes');box.innerHTML='';const phones=ls('telefonos',{});
- for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const pagos=clPagosApp(c.id);const pag=c.pagado||0;
-  el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(c.id)?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span></span><button class="gear" title="Teléfono">⚙️</button></h3>
+ for(const c of CORTES){const el=document.createElement('div');el.className='card'+(c.revisar?' revisar':'');const _pr=promoDeId(c.id);const _des=clArr()||c.desde;const pagos=clPagosApp(c.id,_des).filter(p=>{if(!_pr||!c.fase)return true;const ant=promoEsAnticipo(_pr,p);return c.fase==='pre'?!ant:c.fase==='promo'?ant:true});const pag=c.pagado||0;
+  el.innerHTML=`<h3><span class="tg" style="cursor:pointer;flex:1"><span class="ar">${OPEN.has(clKey(c))?'▾':'▸'}</span> ${c.cliente||c.gestor} <span class="tag">${c.cliente?'Cliente Canek':'Gestor'}</span>${c.fase==='pre'?' <span class="tag" style="background:#fef3c7">Antes de la promo</span>':c.fase==='promo'?' <span class="tag" style="background:#dbeafe">Promo</span>':''}</span><button class="gear" title="Teléfono">⚙️</button></h3>
   <div class="sum tg2"><span>${fd(c.desde)} – ${fd(c.hasta)}</span>${c.total>0.009?'<span class="tag" style="background:#fee2e2">⏳ Pendiente</span>':c.total<-0.009?'<span class="tag" style="background:#dbeafe">Saldo a favor</span>':'<span class="tag" style="background:#dcfce7">✔ Pagado</span>'}${c.revisar?'<span class="tag" style="background:#fed7aa">⚠ Revisar</span>':''}<b class="tt">${$m(c.total)}</b></div>
-  <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${telGet(c.id)||''}"></label><button class="sec savetel">Guardar</button></div><div class="cb" ${OPEN.has(c.id)?'':'hidden'}>
-  ${((c.otros&&c.otros.length)||(c.abonos||[]).some(a=>a.revisar))?`<div class="badge">⚠ Revisar</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto||l.tramite)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).concat((c.abonos||[]).filter(a=>a.revisar).map(a=>`${fd(a.fecha)} · ⚠ ${esc(a.nota||'Revisar abono')}`)).join('<br>')}</div>`:''}<div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}</div><label style="font-size:.85rem;display:block"><input type="checkbox" class="pre" ${c.prepago?'checked':''}> Prepago (paga antes de entregar)</label>${c.prepago?`<div class="sent">💳 Prepago — pagado al entregar ${$m(c.prepagoMonto)} · saldo $0.00</div>`:''}<div style="font-size:.85rem">Cargos del periodo: <b>${$m(c.subtotal)}</b> · Saldo anterior: <b class="${(c.saldoAnt||0)>0.009?'bad':'ok'}">${(c.saldoAnt||0)<-0.009?'a favor '+$m(-c.saldoAnt):$m(c.saldoAnt||0)}</b>${c.arr&&c.arr.ign?' <span class="tag">sin arrastre</span>':''} <a href="#" class="ajt">ajustar</a></div><div class="ajbox" hidden style="font-size:.8rem"><label>Ajuste / saldo inicial (+ debe, − a favor)<input type="number" step="0.01" class="ajm" value="${c.arr&&c.arr.aj||''}"></label><label><input type="checkbox" class="aji" ${c.arr&&c.arr.ign?'checked':''}> Ignorar saldo anterior</label><button class="sec ajok">Guardar</button><div style="opacity:.7">${c.arr?`Desde ${fd(clArr())}: cargos ${$m(c.arr.cargos)} − ya pagado ${$m(c.arr.pg)}`:''}</div></div><pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button>${c.total>0.009?'<button class="wa rec" style="background:#0e7490">🔔 Recordatorio de pago</button>':'<button class="sec rec" disabled>✔ Pagado</button>'}<b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
+  <div class="cfg" hidden><label>Teléfono WhatsApp (con 52)<input class="tel" inputmode="numeric" placeholder="52XXXXXXXXXX" value="${telGet(c.id)||''}"></label><button class="sec savetel">Guardar</button></div><div class="cb" ${OPEN.has(clKey(c))?'':'hidden'}>
+  ${((c.otros&&c.otros.length)||(c.abonos||[]).some(a=>a.revisar||a.dup||a.atipico))?`<div class="badge">${(c.otros&&c.otros.length)||(c.abonos||[]).some(a=>a.revisar||a.dupPend)?'⚠ Revisar':'Nota'}</div><div class="otl">${(c.otros||[]).map(l=>`${fd(l.fecha)} · ${esc(l.cliente)}: <b>${esc(l.texto||l.tramite)}</b> — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`).concat((c.abonos||[]).filter(a=>a.atipico||a.dup||a.revisar).map(a=>{const mon=a.montoRaw||a.abonoRaw||a.monto||0;if(a.atipico)return `${fd(a.fecha)} · ⚠ ${esc(a.nota||('Abono atípico $'+mon+' ignorado, no se cuenta'))}`;if(a.dup){const bid=esc(a.botId||a.id||'');const st=a.dec==='otro'?'Se cuenta como otro pago':a.dec==='rep'?'Marcado como repetido, no se cuenta':'Posible duplicado, no se cuenta hasta que decidas';return `${fd(a.fecha)} · ${$m(mon)} · ${esc(st)} ${a.botId?'('+esc(a.botId)+')':''}<br><button type="button" class="sec decotro" data-bid="${bid}" ${a.dec==='otro'?'disabled':''}>✅ Sí es otro pago</button> <button type="button" class="sec decrep" data-bid="${bid}" ${a.dec==='rep'?'disabled':''}>🚫 Es repetido</button>`}return `${fd(a.fecha)} · ⚠ ${esc(a.nota||'Revisar abono')}`})).join('<br>')}</div>`:''}<div class="row" style="font-size:.8rem;align-items:end"><label>Inicio<input type="date" class="ri" value="${c.desde}"></label><label>Fin<input type="date" class="rf" value="${c.hasta}"></label><button class="sec rr" style="font-size:.75rem;padding:4px 8px">Restablecer</button>${c.custom?'<span class="tag" style="background:#fef3c7">Rango personalizado</span>':''}</div><label style="font-size:.85rem;display:block"><input type="checkbox" class="pre" ${c.prepago?'checked':''}> Prepago (paga antes de entregar)</label>${c.prepago?`<div class="sent">💳 Prepago — pagado al entregar ${$m(c.prepagoMonto)} · saldo $0.00</div>`:''}<div style="font-size:.85rem">Cargos del periodo: <b>${$m(c.subtotal)}</b> · Saldo anterior: <b class="${(c.saldoAnt||0)>0.009?'bad':'ok'}">${(c.saldoAnt||0)<-0.009?'a favor '+$m(-c.saldoAnt):$m(c.saldoAnt||0)}</b>${c.arr&&c.arr.ign?' <span class="tag">sin arrastre</span>':''} <a href="#" class="ajt">ajustar</a></div><div class="ajbox" hidden style="font-size:.8rem"><label>Ajuste / saldo inicial (+ debe, − a favor)<input type="number" step="0.01" class="ajm" value="${c.arr&&c.arr.aj||''}"></label><label><input type="checkbox" class="aji" ${c.arr&&c.arr.ign?'checked':''}> Ignorar saldo anterior</label><button class="sec ajok">Guardar</button><div style="opacity:.7">${c.arr?`Desde ${fd(clArr())}: cargos ${$m(c.arr.cargos)} − ya pagado ${$m(c.arr.pg)}`:''}</div></div><pre></pre><div class="row"><button class="sec cp">Copiar</button><button class="wa send">Enviar</button>${c.total>0.009?'<button class="wa rec" style="background:#0e7490">🔔 Recordatorio de pago</button>':'<button class="sec rec" disabled>✔ Pagado</button>'}<b style="margin-left:auto">${$m(c.total)}</b></div>${ls(envKey(c),null)?`<div class="sent">✔ Enviado ${fd(ls(envKey(c),''))}</div>`:''}
   <div class="pay"><input type="number" step="0.01" placeholder="Monto" class="pm"><input type="date" class="pd" value="${iso(new Date())}"><input placeholder="Nota" class="pn"><button class="reg">Registrar pago</button></div>
   <div>Pagado en este periodo: <b>${$m(pag)}</b> · Pendiente: <b class="${Math.abs(c.total)>0.009?'bad':'ok'}">${$m(c.total)}</b>${pagos.length?` <a href="#" class="clr">borrar pagos del periodo</a>`:''}</div>${pagos.length?`<div style="font-size:.8rem">${pagos.map(p=>`${fd(p.fecha)} · ${$m(p.monto)}${p.nota?' · '+esc(p.nota):''} <a href="#" class="pdel" data-id="${p.id}">quitar</a>`).join('<br>')}</div>`:''}${pagos.length?`<div class="row"><button class="wa conf">✅ Confirmar pago</button>${ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,null)?`<span class="sent">✔ Confirmación enviada ${fd(ls('confirmado:'+c.id+':'+c.desde+':'+c.hasta,''))}</span>`:''}</div>`:''}</div>`;
   el.querySelector('pre').textContent=c.texto;
   const ri=el.querySelector('.ri'),rf=el.querySelector('.rf');ri.onchange=rf.onchange=()=>{if(ri.value&&rf.value&&ri.value<=rf.value)clSetRango(c.id,ri.value,rf.value)};el.querySelector('.rr').onclick=()=>clSetRango(c.id,null,null);
   el.querySelector('.rec').onclick=()=>{if(!(c.total>0.009))return;const t=telPedir(c,el);if(!t)return;abrirWA(t,textoRecordatorio(c,pag));ss('recordado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()))};
-  const tgl=()=>{const x=el.querySelector('.cb');x.hidden=!x.hidden;x.hidden?OPEN.delete(c.id):OPEN.add(c.id);saveOpen();el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};el.querySelector('.tg').onclick=tgl;el.querySelector('.tg2').onclick=tgl;
+  const tgl=()=>{const x=el.querySelector('.cb');x.hidden=!x.hidden;x.hidden?OPEN.delete(clKey(c)):OPEN.add(clKey(c));saveOpen();el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};el.querySelector('.tg').onclick=tgl;el.querySelector('.tg2').onclick=tgl;
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{telSet(c.id,el.querySelector('.tel').value);render()};
   el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
@@ -372,14 +460,18 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   el.querySelector('.pre').onchange=e=>clSetPre(c.id,e.target.checked);
   el.querySelector('.ajt').onclick=e=>{e.preventDefault();const x=el.querySelector('.ajbox');x.hidden=!x.hidden};el.querySelector('.ajok').onclick=()=>clSetAjuste(c.id,{monto:parseFloat(el.querySelector('.ajm').value)||0,ignorar:el.querySelector('.aji').checked});
   const cf=el.querySelector('.conf');if(cf)cf.onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,textoConfirmacion(c,pagos));ss('confirmado:'+c.id+':'+c.desde+':'+c.hasta,iso(new Date()));render()};
+  el.querySelectorAll('.decotro').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();clSetAbonoDec(b.getAttribute('data-bid'),'otro')});
+  el.querySelectorAll('.decrep').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();clSetAbonoDec(b.getAttribute('data-bid'),'rep')});
   el.querySelectorAll('.pdel').forEach(a=>a.onclick=e=>{e.preventDefault();const id=a.getAttribute('data-id');if(!id)return;if(confirm('¿Quitar este pago?')){clPagoDel(c.id,id);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}});const clr=el.querySelector('.clr');if(clr)clr.onclick=e=>{e.preventDefault();if(confirm('¿Borrar los pagos registrados de este periodo? Los abonos del bot no se borran.')){clPagoDelRango(c.id,c.desde,c.hasta);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}};
   el.querySelector('.cb').addEventListener('click',e=>e.stopPropagation());box.appendChild(el)}
  const t=document.getElementById('dif');t.innerHTML='<tr><th>Corte</th><th>Total</th><th>Pagado</th><th>Diferencia</th></tr>';
  for(const c of CORTES){const pag=c.pagado||0,d=c.total;t.innerHTML+=`<tr><td>${c.cliente||c.gestor}</td><td>${$m(c.subtotal+(c.saldoAnt||0))}</td><td>${$m(pag)}</td><td class="${Math.abs(d)>0.009?'bad':'ok'}">${$m(d)}</td></tr>`}
  renderResumen();renderRevisar()}
 const esc=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
-function renderRevisar(){const R=document.getElementById('revisar');const F=CORTES.map(c=>{const ot=(c.otros||[]).filter(l=>l&&(l.texto||l.tramite||l.sinPrecio));const ab=(c.abonos||[]).filter(a=>a.revisar&&/sin monto/i.test(a.nota||''));if(!ot.length&&!ab.length)return null;return{c,ot,ab}}).filter(Boolean);if(!F.length){R.hidden=true;R.innerHTML='';return}R.hidden=false;
- R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">⚠ Por revisar: cortes con otros trámites (${F.length})</h2>`+F.map(({c,ot,ab})=>`<div style="margin-bottom:6px"><b>${esc(nom(c))}</b>: `+[...ot.map(l=>`${fd(l.fecha)} · ${esc(l.cliente)} — ${esc(l.texto||l.tramite)} — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`),...ab.map(a=>`${fd(a.fecha)} · ⚠ ${esc(a.nota||'Abono sin monto')}`)].join('; ')+'</div>').join('')}
+function renderRevisar(){const R=document.getElementById('revisar');const F=CORTES.map(c=>{const ot=(c.otros||[]).filter(l=>l&&(l.texto||l.tramite||l.sinPrecio));const ab=(c.abonos||[]).filter(a=>(a.revisar&&/sin monto/i.test(a.nota||''))||a.dupPend||(a.dup&&!a.dec));if(!ot.length&&!ab.length)return null;return{c,ot,ab}}).filter(Boolean);if(!F.length){R.hidden=true;R.innerHTML='';return}R.hidden=false;
+ R.innerHTML=`<h2 style="margin-top:0;font-size:1.1rem">⚠ Por revisar: cortes con otros trámites (${F.length})</h2>`+F.map(({c,ot,ab})=>`<div style="margin-bottom:8px"><b>${esc(nom(c))}</b>: `+[...ot.map(l=>`${fd(l.fecha)} · ${esc(l.cliente)} — ${esc(l.texto||l.tramite)} — ${l.sinPrecio?'<span class="sp">SIN PRECIO</span>':$m(l.subtotal)}`),...ab.map(a=>{const mon=a.montoRaw||a.abonoRaw||a.monto||0;if(a.dup||a.dupPend){const bid=esc(a.botId||a.id||'');return `${fd(a.fecha)} · ${$m(mon)} · posible duplicado ${a.botId?'('+esc(a.botId)+')':''} <button type="button" class="sec decotro" data-bid="${bid}">✅ Sí es otro pago</button> <button type="button" class="sec decrep" data-bid="${bid}">🚫 Es repetido</button>`}return `${fd(a.fecha)} · ⚠ ${esc(a.nota||'Abono sin monto')}`})].join('<br>')+'</div>').join('');
+ R.querySelectorAll('.decotro').forEach(b=>b.onclick=()=>clSetAbonoDec(b.getAttribute('data-bid'),'otro'));
+ R.querySelectorAll('.decrep').forEach(b=>b.onclick=()=>clSetAbonoDec(b.getAttribute('data-bid'),'rep'))}
 document.getElementById('todo').onclick=()=>{if(!CORTES.length)return msg('Primero carga datos');const ph=ls('telefonos',{});
  const b={generado:new Date().toISOString(),desde:CORTES[0].desde,hasta:CORTES[0].hasta,cortes:CORTES.map(c=>({id:c.id,destinatario:c.cliente||c.gestor,tipo:c.cliente?'cliente_canek':'gestor',telefono:telGet(c.id)||null,total:c.total,abonos:c.totalAbonos,lineas:c.lineas,texto:c.texto}))};
  const txt='CORTES '+b.desde+' a '+b.hasta+'\n\n'+CORTES.map(c=>c.texto).join('\n\n-----\n\n')+'\n\n```json\n'+JSON.stringify(b)+'\n```';
@@ -419,10 +511,11 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.querySelector('#fca').onclick=()=>{F.hidden=true};
  F.querySelector('#fgo').onclick=()=>{const p=ls('telefonos',{});F.querySelectorAll('input[data-id]').forEach(i=>{const v=i.value.replace(/\D/g,'');if(v){p[i.dataset.id]=v;p[telN(i.dataset.id)]=v}});ss('telefonos',p);render();iniciarCola()};
  F.scrollIntoView({behavior:'smooth'})};
-document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
+document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 try{clPagosMigrar()}catch(e){}
+ try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v31</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v32</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
