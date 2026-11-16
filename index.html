@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v29</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v30</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -87,9 +87,17 @@ async function snapshot(){const ls={};for(let i=0;i<LS.length;i++){const k=LS.ke
 const J=s=>{try{return JSON.parse(s)}catch(e){return undefined}};
 const isObj=x=>x&&typeof x=='object'&&!Array.isArray(x);
 const PHONE=k=>k=='telefonos'||k=='pv_telefonos'||k.startsWith('telefonos_respaldo');
+/* v30: rangos personalizados atados al periodo general vigente */
+function rk(d,h){return d+'|'+h}
+function rangoNorm(v){if(!v)return{};if(Array.isArray(v)){if(v.length>=4&&v[2]&&v[3]){const o={};o[rk(v[2],v[3])]=[v[0],v[1]];return o}return{}}if(typeof v=='object'){const o={};for(const k in v){const x=v[k];if(k!='_legacy'&&Array.isArray(x)&&x[0]&&x[1])o[k]=[x[0],x[1]]}return o}return{}}
+function rangoGet(v,gd,gh){if(!v||!gd||!gh)return null;if(Array.isArray(v))return(v.length>=4&&v[2]==gd&&v[3]==gh&&v[0]&&v[1])?[v[0],v[1]]:null;if(typeof v=='object'){const x=v[rk(gd,gh)];return(Array.isArray(x)&&x[0]&&x[1])?[x[0],x[1]]:null}return null}
+function rangoWrite(store,id,d,h,gd,gh){const rec=rangoNorm(store[id]);const k=rk(gd,gh);if(!d||!h||d>h||(d==gd&&h==gh))delete rec[k];else rec[k]=[d,h];if(!Object.keys(rec).length)delete store[id];else store[id]=rec;return store}
+function mergeRangos(A,B,aNewer){const R={};for(const id of new Set([...Object.keys(A||{}),...Object.keys(B||{})])){const am=rangoNorm(A&&A[id]),bm=rangoNorm(B&&B[id]);const rec={};for(const k of new Set([...Object.keys(am),...Object.keys(bm)]))rec[k]=(am[k]&&bm[k])?(aNewer?am[k]:bm[k]):(am[k]||bm[k]);if(Object.keys(rec).length)R[id]=rec}return R}
+window.rangoGet=rangoGet;window.rangoWrite=rangoWrite;window.rangoNorm=rangoNorm;window.mergeRangos=mergeRangos;
 function mergeVal(k,a,b,aNewer){ // a=local,b=remoto (strings)
  const A=J(a),B=J(b);
  if(PHONE(k)&&isObj(A)&&isObj(B)){const R={...B,...A};for(const x in B)if(!R[x])R[x]=B[x];return JSON.stringify(R)}
+ if(k=='cl_rangos'||k=='pv_rangos'){const AA=isObj(A)?A:{},BB=isObj(B)?B:{};if(isObj(A)||isObj(B))return JSON.stringify(mergeRangos(AA,BB,aNewer))}
  if(isObj(A)&&isObj(B)){const R=aNewer?{...B,...A}:{...A,...B};return JSON.stringify(R)}
  if(Array.isArray(A)&&Array.isArray(B)){const seen=new Set,R=[];for(const x of (aNewer?A.concat(B):B.concat(A))){const s=JSON.stringify(x);if(!seen.has(s)){seen.add(s);R.push(x)}}return JSON.stringify(R)}
  return aNewer?a:b}
@@ -289,8 +297,8 @@ function telGet(id){const T=ls('telefonos',{});if(T[id])return T[id];const n=tel
  const g=n.split('|')[0];if(n.indexOf('|')<0)for(const k in T)if(telN(k).replace(/\s+\d+$/,'')==g)return T[k];return ''}
 function telSet(id,v){const T=ls('telefonos',{});v=String(v||'').replace(/\D/g,'');if(v){T[id]=v;T[telN(id)]=v}else{delete T[id];for(const k of Object.keys(T))if(telN(k)==telN(id))delete T[k]}ss('telefonos',T)}
 let CORTES=[],CROWS=null;const clGen=()=>[document.getElementById('desde').value,document.getElementById('hasta').value];
-function clBuild(){const[d,h]=clGen();const cr=ls('cl_rangos',{});const L=buildCortes(CROWS,d,h);const out=L.map(c=>{const r=cr[c.id];if(!r)return c;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
- for(const id in cr)if(!out.find(c=>c.id==id)){const x=buildCortes(CROWS,cr[id][0],cr[id][1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}out.forEach(clArrastre);return out.sort((a,b)=>a.id.localeCompare(b.id))}
+function clBuild(){const[d,h]=clGen();const cr=ls('cl_rangos',{});const L=buildCortes(CROWS,d,h);const out=L.map(c=>{const r=rangoGet(cr[c.id],d,h);if(!r)return c;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==c.id);return x?Object.assign(x,{custom:true}):Object.assign(clVacio(c,r),{custom:true})});
+ for(const id in cr){if(out.find(c=>c.id==id))continue;const r=rangoGet(cr[id],d,h);if(!r)continue;const x=buildCortes(CROWS,r[0],r[1]).find(y=>y.id==id);if(x)out.push(Object.assign(x,{custom:true}))}out.forEach(clArrastre);return out.sort((a,b)=>a.id.localeCompare(b.id))}
 const clEsPre=id=>!!ls('cl_prepago',{})[telN(id)];function clSetPre(id,v){const P=ls('cl_prepago',{});if(v)P[telN(id)]=true;else delete P[telN(id)];ss('cl_prepago',P);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 const ARR_DEF='2026-10-17';const clArr=()=>ls('cl_arrastre',ARR_DEF)||ARR_DEF;
 function diaAntes(s){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)}
@@ -304,7 +312,7 @@ function textoConfirmacion(c,pagos){const n=c.cliente||c.gestor,u=pagos[pagos.le
  if(Math.abs(sd)<=0.009)L.push('Tu saldo queda en *$0.00*, ¡gracias!');else if(sd>0)L.push('Saldo pendiente: *'+$m(sd)+'*');else L.push('Tienes un saldo a favor de *'+$m(-sd)+'*, que se aplicará en tu próximo corte.');L.push('','¡Gracias por tu confianza! 😊');return L.join('\n')}
 
 function clVacio(c,r){const x={id:c.id,gestor:c.gestor,cliente:c.cliente,lineas:[],abonos:[],subtotal:0,totalAbonos:0,total:0,otros:[],revisar:false,desde:r[0],hasta:r[1]};x.texto=textoCorte(x);return x}
-function clSetRango(id,d,h){if(!CROWS)return msg('Espera a que carguen los datos');const cr=ls('cl_rangos',{});const[gd,gh]=clGen();if(!d||!h||d>h||(d==gd&&h==gh))delete cr[id];else cr[id]=[d,h];ss('cl_rangos',cr);CORTES=clBuild();ss('ultimos',CORTES);render()}
+function clSetRango(id,d,h){if(!CROWS)return msg('Espera a que carguen los datos');const cr=ls('cl_rangos',{});const[gd,gh]=clGen();rangoWrite(cr,id,d,h,gd,gh);ss('cl_rangos',cr);CORTES=clBuild();ss('ultimos',CORTES);render()}
 function textoRecordatorio(c,pag){const n=c.cliente||c.gestor;const ab=(c.totalAbonos||0)+pag,saldo=c.total-pag;return ['Hola '+n+', ¡buen día! 😊','','Te comparto un recordatorio amable de tu corte del '+fd(c.desde)+' al '+fd(c.hasta)+':','','• Total del corte: '+$m(c.subtotal),...(txtSaldoAnt(c)?[txtSaldoAnt(c),'• Total a pagar: '+$m(c.subtotal+c.saldoAnt)]:[]),'• Abonos registrados: '+$m(ab),'• *Saldo pendiente: '+$m(saldo)+'*','','Cuando tengas oportunidad, ¿nos apoyas con el pago? Si ya lo realizaste, por favor compárteme el comprobante y lo registro. ¡Muchas gracias por tu confianza! 🙏'].join('\n')}
 const msg=t=>document.getElementById('msg').textContent=t;
 const today=new Date(),iso=d=>d.toISOString().slice(0,10);
@@ -387,7 +395,7 @@ document.getElementById('todos').onclick=()=>{if(!CORTES.length)return msg('Prim
  F.scrollIntoView({behavior:'smooth'})};
 document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(c.id));saveOpen();render()};document.getElementById('conT').onclick=()=>{OPEN.clear();saveOpen();render()};
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v29</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v30</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -452,9 +460,9 @@ async function cargar(){const d=$('pdesde').value,h=$('phasta').value;if(!d||!h|
   ROWS=pParse(t);let nvE='';try{const V=await nvLoad();ROWS=nvMerge(ROWS,nvProvRows(V.N,V.C))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}ROWS=pvExtras(ROWS);try{ss('pv_rows',ROWS)}catch(e){}rebuild();pmsg(PC.length+' proveedores (rango general '+pFd(d)+' al '+pFd(h)+') · '+nvFuente(d,h)+nvE)}catch(e){pmsg('Error al cargar: '+e.message)}render()}
 function gen(){return [$('pdesde').value,$('phasta').value]}
 function rebuild(){const[d,h]=gen();const cr=ls('pv_rangos',{}),ad=ls('pv_agregados',[]);const S=new Set();
- for(const r of ROWS)if(r.fecha>=d&&r.fecha<=h)S.add(r.prov);for(const p in cr)if(ROWS.some(r=>r.prov==p&&r.fecha>=cr[p][0]&&r.fecha<=cr[p][1]))S.add(p);for(const p of ad)S.add(p);
- PC=[...S].sort((a,b)=>a.localeCompare(b)).map(p=>{const x=cr[p];const c=pOne(ROWS,p,x?x[0]:d,x?x[1]:h);c.custom=!!x;return c});ss('pv_ultimos',PC)}
-function setRango(p,d,h){const cr=ls('pv_rangos',{});const[gd,gh]=gen();if(!d||!h||(d==gd&&h==gh))delete cr[p];else cr[p]=[d,h];ss('pv_rangos',cr);rebuild();render()}
+ for(const r of ROWS)if(r.fecha>=d&&r.fecha<=h)S.add(r.prov);for(const p in cr){const x=rangoGet(cr[p],d,h);if(x&&ROWS.some(r=>r.prov==p&&r.fecha>=x[0]&&r.fecha<=x[1]))S.add(p)}for(const p of ad)S.add(p);
+ PC=[...S].sort((a,b)=>a.localeCompare(b)).map(p=>{const x=rangoGet(cr[p],d,h);const c=pOne(ROWS,p,x?x[0]:d,x?x[1]:h);c.custom=!!x;return c});ss('pv_ultimos',PC)}
+function setRango(p,d,h){const cr=ls('pv_rangos',{});const[gd,gh]=gen();rangoWrite(cr,p,d,h,gd,gh);ss('pv_rangos',cr);rebuild();render()}
 function estado(c){return ls(stKey(c),{})}
 function prepagoMap(){const m=ls('pv_prepago',null);return m||{'MEGASISTEMAS':true}}
 const isPre=p=>!!prepagoMap()[p];
