@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v33</title>
+<title>Cortes semanales v34</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v33</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v34</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -204,11 +204,13 @@ function buildCortes(rows,desde,hasta){const sel=rows.filter(r=>r.fecha>=desde&&
   (G[key]=G[key]||{id:key,gestor:r.gestor,cliente:r.gestor=='CANEK'?r.cliente.trim():null,lineas:[],abonos:[]});
   for(const it of r.items){const u=r.gestor=='SANTI'&&it.santi!=null?it.santi:it.unit;const st=r.gestor=='SANTI'&&it.santi!=null?u*it.cantidad:it.subtotal;if(clEsMontoAtipico(st)||clEsMontoAtipico(u))continue;G[key].lineas.push({cliente:r.cliente.trim(),fecha:r.fecha,hora:r.hora||it.hora||'',tramite:it.tramite,otros:!!it.otros,sinPrecio:!!it.sinPrecio,texto:it.texto||'',cantidad:it.cantidad,unit:u,subtotal:st,promo:!!it.promo,promoParcial:!!it.promoParcial,precioModo:it.precioModo||''})}
   if(r.abono||r.revisarAbono||r.atipico)G[key].abonos.push({cliente:r.cliente.trim(),fecha:r.fecha,hora:r.hora||'',monto:r.abono||0,ent:!!r.ent,revisar:!!r.revisarAbono,nota:r.abonoNota||'',botId:r.id||'',atipico:!!r.atipico,abonoRaw:r.abonoRaw||0})}
- return Object.values(G).map(c=>{const seen=new Set(),ab=[];for(const a of c.abonos){if(a.atipico||clEsMontoAtipico(a.abonoRaw)||clEsMontoAtipico(a.monto)){ab.push(Object.assign({},a,{monto:0,revisar:false,atipico:true,nota:a.nota||('Abono atípico $'+(a.abonoRaw||a.monto)+' ignorado, no se cuenta')}));continue}if(a.monto>0&&!a.revisar){const k=a.fecha+'|'+Math.round(a.monto*100);if(seen.has(k)){const bid=a.botId||a.id||'';const dec=(typeof clAbonoDecGet==='function')?clAbonoDecGet(bid):null;if(dec&&dec.v==='otro'){ab.push(Object.assign({},a,{dup:true,dec:'otro'}));continue}ab.push(Object.assign({},a,{montoRaw:a.monto,monto:0,revisar:!dec,dup:true,dupPend:!dec,dec:dec&&dec.v,nota:(a.nota?a.nota+' · ':'')+(dec&&dec.v==='rep'?'Marcado como repetido, no se cuenta':'posible duplicado (mismo día y monto). ¿Es otro pago o está repetido?')}));continue}seen.add(k)}ab.push(a)}c.abonos=ab;c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0||c.abonos.some(a=>a.revisar);c.desde=desde;c.hasta=hasta;c.texto=textoCorte(c);return c})
+ return Object.values(G).map(c=>{const seen=new Set(),ab=[];for(const a of c.abonos){if(a.atipico||clEsMontoAtipico(a.abonoRaw)||clEsMontoAtipico(a.monto)){ab.push(Object.assign({},a,{monto:0,revisar:false,atipico:true,nota:a.nota||('Abono atípico $'+(a.abonoRaw||a.monto)+' ignorado, no se cuenta')}));continue}if(a.monto>0&&!a.revisar){const k=a.fecha+'|'+Math.round(a.monto*100);if(seen.has(k)){const bid=a.botId||a.id||'';const dec=(typeof clAbonoDecGet==='function')?clAbonoDecGet(bid):null;if(dec&&dec.v==='otro'){ab.push(Object.assign({},a,{dup:true,dec:'otro'}));continue}ab.push(Object.assign({},a,{montoRaw:a.monto,monto:0,revisar:!dec,dup:true,dupPend:!dec,dec:dec&&dec.v,nota:(a.nota?a.nota+' · ':'')+(dec&&dec.v==='rep'?'Marcado como repetido, no se cuenta':'posible duplicado (mismo día y monto). ¿Es otro pago o está repetido?')}));continue}seen.add(k)}ab.push(a)}c.abonos=ab;c.subtotal=c.lineas.reduce((a,l)=>a+l.subtotal,0);c.totalAbonos=c.abonos.reduce((a,b)=>a+b.monto,0);c.total=c.subtotal-c.totalAbonos;c.otros=c.lineas.filter(l=>l.otros);c.revisar=c.otros.length>0||c.abonos.some(a=>a.revisar);c.desde=desde;c.hasta=hasta;textosCorte(c);return c})
   .sort((a,b)=>a.id.localeCompare(b.id))}
 const $m=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fd=s=>{const[y,m,d]=s.split('-');return d+'/'+m+'/'+y};
-function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));
+function clAbonoEsAnticipo(c,a){const p=typeof promoDeId==='function'?promoDeId(c&&c.id):null;return !!(p&&a&&typeof promoEsAnticipo==='function'&&promoEsAnticipo(p,a))}
+function clAbonoInterno(a){return !!(a&&(a.revisar||a.dupPend||a.atipico||!(+a.monto>0)))}
+function textoCorte(c,cli){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR '+c.gestor)+'*');L.push('Del '+fd(c.desde)+' al '+fd(c.hasta));
  if(c.fase==='pre'){L.push('Antes de la promo.');
   const ant=c.promoAnticipo,fAnt=c.promoAnticipoFecha?fd(c.promoAnticipoFecha):'',desde=c.promoDesdeLabel||'',lab=c.promoPreciosTxt||'';
   if(ant>0.009)L.push('Tienes un anticipo de *'+$m(ant)+'*'+(fAnt?' ('+fAnt+')':'')+', con el que entraste a la promoción desde el '+desde+'.');
@@ -219,12 +221,16 @@ function textoCorte(c){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GESTOR 
  let last='';for(const l of c.lineas){const h=fd(l.fecha)+(l.hora?' '+l.hora:'')+(c.cliente?'':' · '+l.cliente);if(h!=last){L.push('📅 *'+h+'*');last=h}
   let ln='• '+l.tramite+': '+(l.otros&&l.sinPrecio?'SIN PRECIO':l.cantidad+' x '+$m(l.unit)+' = '+$m(l.subtotal));if(l.precioModo==='promo')ln+=(l.promoParcial?' (promo, cubierto en parte)':' (promo)');else if(l.precioModo==='normal'&&c.fase==='promo')ln+=' (precio normal)';if(c.prepago||l.edo==='pagado')ln+=' ✅';else if(l.edo==='parcial')ln+=' · parcial, falta '+$m(l.pend);L.push(ln)}
  L.push('');L.push('Subtotal: '+$m(c.subtotal));
- if(c.abonos.length){for(const a of c.abonos)L.push((a.revisar?'⚠ ':'')+(a.ent?'Pagado al entregar ':'Abono ')+fd(a.fecha)+(c.cliente?'':' ('+a.cliente+')')+(a.revisar&&!a.monto?': '+ (a.nota||'revisar monto'):': -'+$m(a.monto)));}
- if(c.prepago)L.push('Prepago — pagado al entregar: -'+$m(c.prepagoMonto||0));if(c.saldoAnt&&Math.abs(c.saldoAnt)>0.009)L.push('Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+(c.saldoAnt>0?'':'-')+$m(Math.abs(c.saldoAnt)));L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');
- if(c.total>0.009)L.push('Pendiente: '+$m(c.total));else if(c.total<-0.009)L.push('Saldo a favor: '+$m(-c.total)+' (se aplica al siguiente)');else L.push('Pendiente: $0.00');
+ if(c.abonos.length){for(const a of c.abonos){if(cli&&clAbonoInterno(a))continue;const quien=c.cliente?'':' ('+a.cliente+')';
+  if(clAbonoEsAnticipo(c,a)&&+a.monto>0){L.push('Anticipo ('+fd(a.fecha)+')'+quien+': -'+$m(a.monto));continue}
+  L.push((a.revisar?'⚠ ':'')+(a.ent?'Pagado al entregar ':'Abono ')+fd(a.fecha)+quien+(a.revisar&&!a.monto?': '+(a.nota||'revisar monto'):': -'+$m(a.monto)))}}
+ if(c.prepago)L.push('Prepago — pagado al entregar: -'+$m(c.prepagoMonto||0));if(c.saldoAnt&&Math.abs(c.saldoAnt)>0.009)L.push('Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+(c.saldoAnt>0?'':'-')+$m(Math.abs(c.saldoAnt)));
+ if(c.total<-0.009){L.push('*TOTAL A PAGAR: $0.00*');L.push('Saldo a favor: '+$m(-c.total))}
+ else{L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');L.push(c.total>0.009?'Pendiente: '+$m(c.total):'Pendiente: $0.00')}
  if(c.fase==='pre'&&c.promoSaldoHoy!=null&&c.promoSaldoHoy>=0)L.push('Saldo a favor en promo: '+$m(c.promoSaldoHoy));
  if(c.fase==='promo'&&c.promoPrePendiente>0.009)L.push('Tienes un corte pendiente aparte de '+$m(c.promoPrePendiente)+' de antes de la promo.');
  return L.join('\n')}
+function textosCorte(c){c.texto=textoCorte(c,false);c.textoWa=textoCorte(c,true);return c.texto}
 if(typeof module!='undefined')module.exports={parseRows,buildCortes};
 /*CORE-END*/
 /*NV-START*/
@@ -275,7 +281,7 @@ function promoAnticipoInfo(id,p){const pags=(typeof clPagosAll==='function'?clPa
 function promoSaldoHoy(id,p,rows){if(!p)return 0;let cred=typeof promoAnticipoMonto==='function'?promoAnticipoMonto(id,p):0;if(!(p.mientrasAnticipo!==false&&p.anticipo))return cred;const list=rows||[];const its=[];for(const r of list){const rid=typeof clRowId==='function'?clRowId(r):promoCliKey(r.cliente,r.gestor);if(rid!==id||!r.items||!clEnPromo(p,r.fecha,r.hora))continue;for(const it of r.items)its.push({r,it})}its.sort((a,b)=>a.r.fecha<b.r.fecha?-1:a.r.fecha>b.r.fecha?1:((a.r.hora||'')<(b.r.hora||'')?-1:(a.r.hora||'')>(b.r.hora||'')?1:0));for(const {it} of its){if(cred<=0.009)break;const sub=+it.subtotal||0;cred=Math.round((cred-Math.min(cred,sub))*100)/100}return Math.max(0,cred)}
 function clAnotarPromo(out,rows){if(!out||typeof promoDeId!=='function')return out;const by={};for(const c of out){const p=promoDeId(c.id);if(!p)continue;(by[c.id]=by[c.id]||{p,pre:[],pro:[]});if(c.fase==='pre')by[c.id].pre.push(c);else if(c.fase==='promo')by[c.id].pro.push(c)}
  for(const id of Object.keys(by)){const {p,pre,pro}=by[id],ant=promoAnticipoInfo(id,p),hoy=promoSaldoHoy(id,p,rows),prePend=pre.reduce((s,c)=>s+Math.max(0,+c.total||0),0),lab=promoPreciosTxt(p);
-  for(const c of pre.concat(pro)){c.promoAnticipo=ant.monto;c.promoAnticipoFecha=ant.fecha;c.promoDesdeLabel=c.promoDesdeLabel||promoDesdeLabel(p);c.promoPreciosTxt=lab;c.promoSaldoHoy=hoy;c.promoPrePendiente=prePend;c.texto=textoCorte(c)}}
+  for(const c of pre.concat(pro)){c.promoAnticipo=ant.monto;c.promoAnticipoFecha=ant.fecha;c.promoDesdeLabel=c.promoDesdeLabel||promoDesdeLabel(p);c.promoPreciosTxt=lab;c.promoSaldoHoy=hoy;c.promoPrePendiente=prePend;textosCorte(c)}}
  return out}
 function clAplicarPromoPrecios(rows){if(!rows)return rows;const out=rows.map(r=>{const x=Object.assign({},r);if(x.items)x.items=x.items.map(it=>{const y=Object.assign({},it);if(y.unitSheet==null&&y.unit!=null)y.unitSheet=y.unit;if(y.subSheet==null&&y.subtotal!=null)y.subSheet=y.subtotal;if(y.unitSheet!=null)y.unit=y.unitSheet;if(y.subSheet!=null)y.subtotal=y.subSheet;delete y.promo;delete y.promoParcial;delete y.precioModo;return y});return x});
  const by={};for(const r of out){const id=(typeof clRowId==='function')?clRowId(r):promoCliKey(r.cliente,r.gestor);(by[id]=by[id]||[]).push(r)}
@@ -432,14 +438,14 @@ function clArrastre(c,hist,hs){const A=ls('cl_ajuste',{})[c.id]||{};c.prepago=cl
   const poolB=pagos.filter(p=>pf(p)<c.desde).reduce((s,p)=>s+(+p.monto||0),0);const cargosB=F.filter(l=>l.fecha<c.desde).reduce((s,l)=>s+(+l.subtotal||0),0);const credB=Math.max(0,Math.round((poolB-cargosB)*100)/100);
   if(!A.ignorar&&credB>0.009)c.saldoAnt=Math.round(((+c.saldoAnt||0)-credB)*100)/100;
   const base=Math.max(0,c.saldoAnt)+pendPer;c.total=(base<=0.009&&credH>0.009)?Math.round((-credH)*100)/100:Math.round(base*100)/100}
- c.arr={cargos:Math.round(cargos*100)/100,ab:Math.round(ab*100)/100,pg:Math.round(pagAnt*100)/100,aj:aj,ign:!!A.ignorar};c.texto=textoCorte(c);return c}
+ c.arr={cargos:Math.round(cargos*100)/100,ab:Math.round(ab*100)/100,pg:Math.round(pagAnt*100)/100,aj:aj,ign:!!A.ignorar};textosCorte(c);return c}
 function clSetAjuste(id,o){const A=ls('cl_ajuste',{});if(o&&clAjusteEsTypo(o.monto))o={ignorar:!!o.ignorar,monto:0};if(!o||(!o.ignorar&&!o.monto))delete A[id];else A[id]=o;ss('cl_ajuste',A);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 function txtSaldoAnt(c){return c.saldoAnt&&Math.abs(c.saldoAnt)>0.009?'• Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+$m(Math.abs(c.saldoAnt)):null}
 function textoConfirmacion(c,pagos){const n=c.cliente||c.gestor,u=pagos[pagos.length-1],pag=pagos.reduce((a,p)=>a+(+p.monto||0),0),ab=(c.totalAbonos||0)+pag,sd=Math.round((c.total)*100)/100;
  const L=['Hola '+n+', ¡muchas gracias! 🙏','','Hemos recibido tu pago de *'+$m(u.monto)+'* ('+fd(u.fecha)+').','','Corte del '+fd(c.desde)+' al '+fd(c.hasta)+':','• Total del periodo: '+$m(c.subtotal)];const sa=txtSaldoAnt(c);if(sa)L.push(sa);L.push('• Total a pagar: '+$m(c.subtotal+(c.saldoAnt||0)),'• Total abonado: '+$m(ab),'');
  if(Math.abs(sd)<=0.009)L.push('Tu saldo queda en *$0.00*, ¡gracias!');else if(sd>0)L.push('Saldo pendiente: *'+$m(sd)+'*');else L.push('Tienes un saldo a favor de *'+$m(-sd)+'*, que se aplicará en tu próximo corte.');L.push('','¡Gracias por tu confianza! 😊');return L.join('\n')}
 
-function clVacio(c,r){const x={id:c.id,gestor:c.gestor,cliente:c.cliente,lineas:[],abonos:[],subtotal:0,totalAbonos:0,total:0,otros:[],revisar:false,desde:r[0],hasta:r[1]};x.texto=textoCorte(x);return x}
+function clVacio(c,r){const x={id:c.id,gestor:c.gestor,cliente:c.cliente,lineas:[],abonos:[],subtotal:0,totalAbonos:0,total:0,otros:[],revisar:false,desde:r[0],hasta:r[1]};textosCorte(x);return x}
 function clSetRango(id,d,h){if(!CROWS)return msg('Espera a que carguen los datos');const cr=ls('cl_rangos',{});const[gd,gh]=clGen();rangoWrite(cr,id,d,h,gd,gh);ss('cl_rangos',cr);CORTES=clBuild();ss('ultimos',CORTES);render()}
 function textoRecordatorio(c,pag){const n=c.cliente||c.gestor;const ab=(c.totalAbonos||0)+(pag||c.pagado||0),saldo=c.total;return ['Hola '+n+', ¡buen día! 😊','','Te comparto un recordatorio amable de tu corte del '+fd(c.desde)+' al '+fd(c.hasta)+':','','• Total del corte: '+$m(c.subtotal),...(txtSaldoAnt(c)?[txtSaldoAnt(c),'• Total a pagar: '+$m((c.subtotal||0)+(c.saldoAnt||0))]:[]),'• Abonos registrados: '+$m(ab),'• *Saldo pendiente: '+$m(saldo)+'*','','Cuando tengas oportunidad, ¿nos apoyas con el pago? Si ya lo realizaste, por favor compárteme el comprobante y lo registro. ¡Muchas gracias por tu confianza! 🙏'].join('\n')}
 const msg=t=>document.getElementById('msg').textContent=t;
@@ -468,8 +474,8 @@ function render(){const box=document.getElementById('cortes');box.innerHTML='';c
   const tgl=()=>{const x=el.querySelector('.cb');x.hidden=!x.hidden;x.hidden?OPEN.delete(clKey(c)):OPEN.add(clKey(c));saveOpen();el.querySelector('.ar').textContent=x.hidden?'▸':'▾'};el.querySelector('.tg').onclick=tgl;el.querySelector('.tg2').onclick=tgl;
   el.querySelector('.gear').onclick=()=>{const x=el.querySelector('.cfg');x.hidden=!x.hidden};
   el.querySelector('.savetel').onclick=()=>{telSet(c.id,el.querySelector('.tel').value);render()};
-  el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
-  el.querySelector('.send').onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()};
+  el.querySelector('.cp').onclick=()=>navigator.clipboard.writeText(c.textoWa||c.texto).then(()=>msg('Copiado: '+(c.cliente||c.gestor)));
+  el.querySelector('.send').onclick=()=>{const t=telPedir(c,el);if(!t)return;abrirWA(t,c.textoWa||c.texto);ss(envKey(c),iso(new Date()));render()};
   el.querySelector('.reg').onclick=()=>{const m=parseFloat(el.querySelector('.pm').value);if(!(m>0))return msg('Monto inválido');clPagoAdd(c.id,{monto:m,fecha:el.querySelector('.pd').value||iso(new Date()),nota:el.querySelector('.pn').value});if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()};
   el.querySelector('.pre').onchange=e=>clSetPre(c.id,e.target.checked);
   el.querySelector('.ajt').onclick=e=>{e.preventDefault();const x=el.querySelector('.ajbox');x.hidden=!x.hidden};el.querySelector('.ajok').onclick=()=>clSetAjuste(c.id,{monto:parseFloat(el.querySelector('.ajm').value)||0,ignorar:el.querySelector('.aji').checked});
@@ -506,7 +512,7 @@ function renderResumen(){const R=document.getElementById('resumen');if(!CORTES.l
 // ---- Cola "Enviar a todos" ----
 let COLA=null;const nom=c=>c.cliente||c.gestor;
 function abrirWA(t,x){const e=encodeURIComponent(x),w='https://wa.me/'+t+'?text='+e,m=ls('waApp2','n');if(m==='s'&&navigator.share){navigator.share({text:x}).catch(()=>{});return}if(/Android/i.test(navigator.userAgent)){const pk=m==='n'?'com.whatsapp':'com.whatsapp.w4b';location.href='intent://send/?phone='+t+'&text='+e+'#Intent;scheme=whatsapp;package='+pk+';end'}else{window.open(w,'_blank')}}
-function abrirCorte(c){const t=telGet(c.id);abrirWA(t,c.texto);ss(envKey(c),iso(new Date()));render()}
+function abrirCorte(c){const t=telGet(c.id);abrirWA(t,c.textoWa||c.texto);ss(envKey(c),iso(new Date()));render()}
 function mostrarCola(){const b=document.getElementById('cola');if(!COLA){b.hidden=true;return}
  if(COLA.i>=COLA.lista.length){b.hidden=false;b.innerHTML=`<b>✔ Cola terminada (${COLA.lista.length} cortes).</b><button class="sec" id="qfin">Cerrar</button>`;b.querySelector('#qfin').onclick=()=>{COLA=null;mostrarCola()};return}
  const c=COLA.lista[COLA.i];b.hidden=false;b.style.background=c.revisar?'#fed7aa':'';b.style.borderColor=c.revisar?'#ea580c':'';b.innerHTML=`<span>${c.revisar?'<span class="qrev">⚠ Revisar otros trámites</span> ':''}Siguiente: <b>${nom(c)}</b> (${COLA.i+1} de ${COLA.lista.length}) · ${$m(c.total)}</span><button class="wa" id="qab">Abrir siguiente</button><button class="sec" id="qsa">Saltar</button><button class="sec" id="qte">Terminar</button>`;
@@ -529,7 +535,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v33</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v34</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
