@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v48</title>
+<title>Cortes semanales v49</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v48</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v49</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -421,7 +421,7 @@ function clArrastre(c,hist,hs){const A=ls('cl_ajuste',{})[c.id]||{};c.prepago=cl
  const a0=A.ignorar?(c.desde||clArr()||hs||''):(clArr()||hs||c.desde||'');
  let pagosAll=clPagosAll(c.id,null);
  if(promo){if(c.fase==='pre'){H=H.filter(l=>!clEnPromo(promo,l.fecha,l.hora));pagosAll=pagosAll.filter(x=>!promoEsAnticipo(promo,x))}else if(c.fase==='promo'){H=H.filter(l=>clEnPromo(promo,l.fecha,l.hora));pagosAll=pagosAll.filter(x=>promoEsAnticipo(promo,x))}}
- if(A.ignorar&&a0){H=H.filter(l=>l.fecha>=a0);pagosAll=pagosAll.filter(p=>!clPagoEsAnterior(p,a0,promo))}
+ if(A.ignorar&&a0){H=H.filter(l=>l.fecha>=a0);pagosAll=pagosAll.filter(p=>!clPagoEsAnterior(p,a0,promo)||(promo&&c.fase==='promo'&&promoEsAnticipo(promo,p)))}
  const aj=clAjusteEsTypo(A.monto)?0:(+A.monto||0);
  const Hold=H.filter(l=>l.fecha<c.desde);
  const Pcerr=pagosAll.filter(p=>clPagoCerrado(p,c.desde));
@@ -557,7 +557,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v48</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v49</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
