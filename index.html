@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v44</title>
+<title>Cortes semanales v45</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v44</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v45</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -330,7 +330,8 @@ function nvCliRows(N){N=nvCliFix(N);const pS=new Set();return N.filter(x=>norm(x
   const cat=NV_CLI[nt]||NV_CLI[norm(t0)];
   const nn=String(x.notas||'');
   const pays=[...nn.matchAll(/\b(?:pago|abono)\s*\$\s*([\d.,]+)(?:\s*\([^)]*\))?\s*recibido(?:\s*(\d{1,2}\/\d{1,2}\/\d{4}))?(?:\s*(\d{1,2}:\d{2}))?/ig),...nn.matchAll(/pagado con saldo a favor\s*\$\s*([\d.,]+)/ig)];
-  let pe=0;const tsL=[];for(const pm of pays){const v=num(pm[1]);if(!v)continue;const ts=(pm[2]||'')+(pm[3]?' '+pm[3]:'');if(ts)tsL.push(ts.trim());const pk=x.fecha+'|'+norm(cliente)+'|'+String(pm[0]).replace(/recibido[\s\S]*$/i,'recibido')+'|'+ts;if(pS.has(pk))continue;pS.add(pk);pe+=v}
+  let pe=0,safK='';const tsL=[];for(const pm of pays){const v=num(pm[1]);if(!v)continue;const isSaf=/saldo a favor/i.test(pm[0]);const ts=isSaf?'':(pm[2]||'')+(pm[3]?' '+pm[3]:'');if(ts)tsL.push(ts.trim());if(isSaf)safK='saf#'+(x.id||Math.random());const pk=x.fecha+'|'+norm(cliente)+'|'+String(pm[0]).replace(/recibido[\s\S]*$/i,'recibido')+'|'+(isSaf?safK:ts);if(pS.has(pk))continue;pS.add(pk);pe+=v}
+  {const gm=nn.match(/SALDO A FAVOR\s*\$\s*([\d.,]+)/);if(gm&&pe>0){const g=num(gm[1]);if(g>0){const pm2=nn.match(/precio\s*\$\s*([\d.,]+)/i);const pr=pm2?num(pm2[1]):num(x.subtotal);pe=Math.min(pe,Math.max(pr||0,Math.round((pe-g)*100)/100))}}}
   const curpM=nn.match(/[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d/);const ctx={tramite:t0,curp:curpM?curpM[0]:'',nota:nn.replace(/^\s*Dato:\s*[^;]*;?\s*/i,'').slice(0,160),ts:tsL.join(', ')};
   if(nt==='ABONO'||norm(t0)==='ABONO'){const raw=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio:null);const mon=raw==null?0:Math.abs(num(raw));const sin=raw==null||!(mon>0);const sospe=mon>=10000;
    return {fecha:x.fecha,hora:x.hora||'',cliente,gestor,items:[],abono:sin||sospe?0:mon,ent:!(sin||sospe)&&mon>0,subdia:0,src:'bot',id:x.id||'',revisarAbono:sin,atipico:!!sospe,abonoRaw:mon,abonoCtx:{tramite:'Abono',curp:'',nota:nn.slice(0,160),ts:((nn.match(/\((\d{1,2}:\d{2})\)/)||[])[1]||'')},abonoTs:'',abonoNota:sin?'Abono sin monto':(sospe?'Abono atípico $'+mon+' ignorado (posible error de decimal / OCR), no se cuenta':'')}}
@@ -339,7 +340,7 @@ function nvCliRows(N){N=nvCliFix(N);const pS=new Set();return N.filter(x=>norm(x
   else{const sub=x.subtotal!=null?x.subtotal:(x.precio!=null?x.precio*x.cantidad:0);const unit=x.precio!=null?x.precio:(x.cantidad?sub/x.cantidad:0);const sinP=x.precio==null&&x.subtotal==null;
    if(cat&&!sinP)Object.assign(it,{tramite:cat[0],unit,subtotal:sub,santi:cat[1]});
    else Object.assign(it,{tramite:'Otros: '+t0,unit,subtotal:sub,santi:null,otros:true,texto:t0+(sinP?' (sin PRECIO)':''),sinPrecio:sinP})}
-  return {fecha:x.fecha,hora:x.hora||'',cliente,gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot',id:x.id||'',abonoTs:ctx.ts,abonoCtx:ctx}})}
+  return {fecha:x.fecha,hora:x.hora||'',cliente,gestor,items:[it],abono:pe,ent:pe>0,subdia:0,src:'bot',id:x.id||'',abonoTs:ctx.ts+(safK?'|'+safK:''),abonoCtx:ctx}})}
 function nvProvRows(N,C){const M=nvMap();return N.filter(x=>norm(x.tramite)!='ABONO'&&!/^\s*costo interno/i.test(String(x.notas||''))).map(x=>{const p=nvProvName(x.prov);const t0=String(x.tramite||'').trim(),t=t0.replace(/\s*\(fuera de cat[aá]logo\)\s*/ig,' ').replace(/\s+/g,' ').trim();
   const vb=norm(t)=='RFC NORMAL'&&/via busqueda/.test(sinAc(String(x.notas||'')).toLowerCase());const col=vb?'CLON':norm(nvMapGet(M,t)||nvMapGet(M,t0)||'');const lab=vb?'RFC verificable':(col?(NV_PLAB[col]||col):t0);
   const cp=C[p]||{};const g=nvCostGet(cp,col);const cost=g.has?g.cost:0;const st=Math.round(cost*x.cantidad*100)/100;
@@ -555,7 +556,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v44</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v45</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
