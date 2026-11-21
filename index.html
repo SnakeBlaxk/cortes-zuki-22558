@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v37</title>
+<title>Cortes semanales v38</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v37</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v38</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -53,6 +53,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 </div><div id="xmsg" style="font-size:.85rem;color:#475569"></div></div>
 <div id="xeq" class="panel" hidden></div>
 <div class="panel"><div style="overflow-x:auto"><table id="xtab"></table></div></div>
+<div class="panel" id="xflujo"></div>
 </div>
 <div id="pmodal" hidden style="position:fixed;inset:0;background:#000d;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px"><button id="pmclose" style="position:absolute;top:10px;right:10px">✕ Cerrar</button><div id="pmbody" style="max-width:100%;max-height:92vh;overflow:auto"></div></div>
 <div id="ppago" hidden style="position:fixed;inset:0;background:#0008;z-index:40;display:flex;align-items:center;justify-content:center;padding:10px"><div class="panel" style="width:100%;max-width:420px;margin:0">
@@ -538,7 +539,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v37</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v38</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
@@ -725,7 +726,23 @@ const xmsg=t=>$('xmsg').textContent=t;const SH='https://docs.google.com/spreadsh
 const r0=ls('x_rango',null);$('xdesde').value=r0?r0[0]:$('desde').value;$('xhasta').value=r0?r0[1]:$('hasta').value;
 async function get(gid){const r=await fetch(SH+gid+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}
 async function cargar(force){const d=$('xdesde').value,h=$('xhasta').value;if(!d||!h||d>h)return xmsg('Rango de fechas inválido');ss('x_rango',[d,h]);
- try{if(force||!CR||!PR){xmsg('Cargando ambas hojas…');const[a,b]=await Promise.all([get('0'),get(P_GID)]);CR=parseRows(a);PR=pParse(b);try{const V=await nvLoad(force);CR=nvMerge(CR,nvCliRows(V.N));PR=nvMerge(PR,nvProvRows(V.N,V.C))}catch(e){XNE=' ⚠ Hoja bot: '+e.message}try{PR=pvExtras(PR)}catch(e){}}render();xmsg('Comparación '+pFd(d)+' – '+pFd(h)+' ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+XNE)}catch(e){xmsg('Error al cargar: '+e.message)}}
+ try{if(force||!CR||!PR){xmsg('Cargando ambas hojas…');const[a,b]=await Promise.all([get('0'),get(P_GID)]);CR=parseRows(a);PR=pParse(b);try{const V=await nvLoad(force);CR=nvMerge(CR,nvCliRows(V.N));try{XFT=await fetch(NV_URL()+'&_='+Date.now()).then(r=>r.ok?r.text():null)}catch(e){XFT=null}PR=nvMerge(PR,nvProvRows(V.N,V.C))}catch(e){XNE=' ⚠ Hoja bot: '+e.message}try{PR=pvExtras(PR)}catch(e){}}render();xmsg('Comparación '+pFd(d)+' – '+pFd(h)+' ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+XNE)}catch(e){xmsg('Error al cargar: '+e.message)}}
+let XFT=null;
+function xIso(f){const m=String(f||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):String(f||'').slice(0,10)}
+function renderFlujo(){const B=$('xflujo');if(!B)return;if(!XFT){B.innerHTML='<h3 style="margin-top:0">Trámites en dos pasos</h3><div style="font-size:.85rem">Sin datos del bot.</div>';return}
+ const R=parseCSV(XFT);const H=R[0].map(x=>norm(x));const ix=n=>H.findIndex(x=>x===norm(n));const iF=ix('FECHA'),iC=ix('CLIENTE'),iG=ix('GESTOR'),iT=ix('TRÁMITE')>=0?ix('TRÁMITE'):ix('TRAMITE'),iS=ix('SUBTOTAL'),iP=ix('PROVEEDOR'),iK=ix('COSTO PROVEEDOR'),iN=ix('NOTAS'),iI=ix('ID');
+ const rows=R.slice(1).filter(r=>r.length>iI&&r[iI]).map(r=>({id:String(r[iI]).trim(),fecha:xIso(r[iF]),cli:(r[iC]||'').trim(),gestor:(r[iG]||'').trim(),t:(r[iT]||'').trim(),sub:parseFloat(String(r[iS]||'').replace(/[$,]/g,''))||0,prov:(r[iP]||'').trim(),costo:parseFloat(String(r[iK]||'').replace(/[$,]/g,''))||0,notas:r[iN]||''}));
+ const byId={};for(const r of rows)byId[r.id]=r;const fin={};
+ for(const r of rows){const m=r.notas.match(/cadena de [^(#]*\(#(\d+)\)/i)||r.notas.match(/b[uú]squeda [^#]*#(\d+)/i);if(m&&!/costo interno/i.test(r.notas))(fin[m[1]]=fin[m[1]]||[]).push(r)}
+ const d=$('xdesde').value,h=$('xhasta').value;const grupos=[{k:'Cadena',tit:'Cadenas → Acta por datos',re:/acta por datos\s*#(\d+)/i,fin:'acta'},{k:'Búsqueda',tit:'Búsquedas de IDCIF → RFC verificable',re:/rfc verificable\s*#(\d+)/i,fin:'verificable'}];
+ const curp=n=>{const m=String(n).match(/[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d/);return m?m[0]:''};
+ let out='<h3 style="margin-top:0">Trámites en dos pasos</h3><div style="font-size:.8rem;color:#475569;margin-bottom:6px">De cada cadena o búsqueda que se compró, si se entregó y cobró el documento final al cliente.</div>';
+ for(const g of grupos){const src=rows.filter(r=>norm(r.t)===norm(g.k)&&r.fecha>=d&&r.fecha<=h);let ok=0;const L=[];
+  for(const r of src){const m=r.notas.match(g.re);let f=m?byId[m[1]]:null;if(!f&&fin[r.id])f=fin[r.id][0];const ent=!!(f&&f.sub>0.009);if(ent)ok++;
+   L.push(`<tr style="background:${ent?'#dcfce7':'#fee2e2'}"><td>${fd(r.fecha)}</td><td>#${esc(r.id)} · ${esc(r.prov||'—')}${r.costo?' ($'+r.costo+')':''}</td><td>${esc(r.cli)}${r.gestor?' · '+esc(r.gestor):''}</td><td>${f?`#${esc(f.id)} · ${esc(f.t)} · ${esc(f.prov||'sin proveedor')} · ${fd(f.fecha)}`:'—'}</td><td>${ent?'✅ Entregado y cobrado '+$m(f.sub):f?'⚠ Sin cobro ($0)':'⚠ Sin documento final'}</td><td style="font-size:.72rem">${esc(curp(r.notas)||'')}</td></tr>`)}
+  out+=`<div style="margin:8px 0 4px"><b>${g.tit}:</b> ${src.length} compradas · <b style="color:#15803d">${ok} entregadas</b>${src.length-ok?` · <b class="bad">${src.length-ok} sin entregar</b>`:''}</div>`;
+  if(src.length)out+=`<div style="overflow-x:auto"><table style="font-size:.78rem"><tr><th>Fecha</th><th>Compra (proveedor)</th><th>Cliente</th><th>Documento final</th><th>Estado</th><th>CURP</th></tr>${L.join('')}</table></div>`}
+ B.innerHTML=out}
 function render(){if(!CR)return;const E=ls('x_eq',{});const L=xBuild(CR,PR,$('xdesde').value,$('xhasta').value,E);
  const lst=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li>${esc(k)}: <b>${v}</b></li>`).join('')||'<li>—</li>';
  let h='<tr><th>Trámite</th><th style="text-align:right">Comprado</th><th style="text-align:right">Entregado</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr>';let i=0;
@@ -733,7 +750,7 @@ function render(){if(!CR)return;const E=ls('x_eq',{});const L=xBuild(CR,PR,$('xd
   const bg=g.interno?'#f1f5f9':g.dif==0?'#dcfce7':g.dif>0?'#fee2e2':'#ffedd5';
   h+=`<tr class="xr" data-i="${i}" style="cursor:pointer;background:${bg}"><td>▸ <b>${esc(g.g)}</b>${g.sin?' <span class="tag" style="background:#fef3c7">Sin equivalencia</span>':''}<div style="font-size:.72rem;color:#64748b">${Object.keys(g.tipos).map(k=>(k[0]=='C'?'Cliente: ':'Proveedor: ')+esc(k.slice(2))).join(' · ')}</div></td><td style="text-align:right">${g.comprado}</td><td style="text-align:right">${g.entregado}</td><td style="text-align:right;font-weight:700">${g.interno?'—':(g.dif>0?'+':'')+g.dif}</td><td>${st}</td></tr>
   <tr id="xd${i}" hidden><td colspan="5"><div style="display:flex;gap:20px;flex-wrap:wrap;font-size:.82rem"><div><b>Por proveedor</b><ul>${lst(g.prov)}</ul></div><div><b>Por cliente · gestor</b><ul>${lst(g.cli)}</ul></div></div></td></tr>`;i++}
- if(!L.length)h+='<tr><td colspan="5">Sin datos en el rango</td></tr>';$('xtab').innerHTML=h;
+ if(!L.length)h+='<tr><td colspan="5">Sin datos en el rango</td></tr>';$('xtab').innerHTML=h;try{renderFlujo()}catch(e){const B=$('xflujo');if(B)B.textContent='Error en reporte de dos pasos: '+e.message}
  document.querySelectorAll('.xr').forEach(r=>r.onclick=()=>{const d=$('xd'+r.dataset.i);d.hidden=!d.hidden;r.cells[0].innerHTML=r.cells[0].innerHTML.replace(/^[▸▾]/,d.hidden?'▸':'▾')})}
 function renderEq(){const E=ls('x_eq',{});const ks=new Set(XKNOWN);if(CR)for(const r of CR)for(const i of r.items)ks.add('C:'+(i.otros?'Otros':i.tramite));if(PR)for(const r of PR)for(const i of r.items)ks.add('P:'+i.t);
  const grupos=[...new Set([...ks].flatMap(k=>String(xEq(k,E).g||'').split(',').map(x=>x.trim())).filter(Boolean))].sort();
