@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v42</title>
+<title>Cortes semanales v43</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v42</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v43</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -127,7 +127,9 @@ async function merge(R){let changed=false;const L=await snapshot();const lm=L.me
  await putPagos(add);if(del.length){await delPagos([...new Set(del)]);changed=true}
  migrarPagosCli();putMeta(M)}finally{applying=false}
  return changed}
-const st=(t,ok)=>{oSet.call(LS,'sync_status',JSON.stringify({t,ok,at:new Date().toLocaleString('es-MX')}));const e=document.getElementById('syncSt');if(e)e.textContent=(ok?'✅ ':'⚠️ ')+t+' · '+new Date().toLocaleString('es-MX')};
+const pill=(t,ok,at)=>{let p=document.getElementById('syncPill');if(!p){if(!document.body)return;p=document.createElement('div');p.id='syncPill';p.style.cssText='position:fixed;right:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';p.onclick=()=>{const d=document.getElementById('syncSt');if(d){d.closest('details')&&(d.closest('details').open=true);d.scrollIntoView({behavior:'smooth',block:'center'})}};document.body.appendChild(p)}const busyT=/sincronizando|subiendo|bajando|enviando/i.test(t||'');p.style.background=busyT?'#dbeafe':ok?'#dcfce7':'#fef3c7';p.style.color=busyT?'#1e40af':ok?'#166534':'#92400e';const hh=String(at||'').replace(/^.*?,\s*/,'');p.textContent=(busyT?'🔄 ':ok?'✅ ':'⚠️ ')+t+(hh&&!busyT?' · '+hh:'')};
+const st=(t,ok)=>{const at=new Date().toLocaleString('es-MX');oSet.call(LS,'sync_status',JSON.stringify({t,ok,at}));const e=document.getElementById('syncSt');if(e)e.textContent=(ok?'✅ ':'⚠️ ')+t+' · '+at;pill(t,ok,at)};
+const pillIni=()=>{try{const x=JSON.parse(LS.getItem('sync_status')||'null');if(x&&cfg().url)pill(x.t,x.ok,x.at)}catch(e){}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(pillIni,0));else setTimeout(pillIni,0);
 const cfg=()=>({url:(LS.getItem('sync_url')||'').trim(),key:(LS.getItem('sync_key')||'').trim()});
 let busy=false,again=false;
 async function sync(opts){const {url,key}=cfg();if(!url||!key)return;if(busy){again=true;return}busy=true;
@@ -403,7 +405,7 @@ function clClearAbonoDec(bid){if(!bid)return;const D=ls('cl_abono_dec',{});delet
 function clSetAbonoDec(bid,v){if(!bid)return;const D=ls('cl_abono_dec',{});D[bid]={v:v,t:Date.now()};ss('cl_abono_dec',D);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 function clRowFix(r){if(!r||!r.revisarAbono||!r.id)return r;const d=clAbonoDecGet(r.id);if(!d)return r;if(d.v==='monto'&&+d.m>0)return Object.assign({},r,{abono:+d.m,abonoRaw:+d.m,ent:false,revisarAbono:false,abonoNota:'Abono capturado a mano $'+(+d.m),revSM:{v:'monto',m:+d.m}});if(d.v==='nopago')return Object.assign({},r,{abono:0,revisarAbono:false,abonoNota:'Revisado: no fue pago',revSM:{v:'nopago'}});return r}
 function clSetAbonoMonto(bid,m){if(!bid)return;const D=ls('cl_abono_dec',{});D[bid]=m==='nopago'?{v:'nopago',t:Date.now()}:{v:'monto',m:+m,t:Date.now()};ss('cl_abono_dec',D);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
-function clAbonosBot(id,desde){if(!CROWS)return[];const out=[],seen=new Set();let i=0;for(const r0 of CROWS){const r=clRowFix(r0);if(clRowId(r)!==id)continue;if(r.atipico||clEsMontoAtipico(r.abonoRaw)||clEsMontoAtipico(r.abono))continue;if(!(r.abono>0))continue;if(desde&&r.fecha<desde)continue;const k=r.fecha+'|'+Math.round(+r.abono*100);if(seen.has(k)){const dec=clAbonoDecGet(r.id);if(!(dec&&dec.v==='otro'))continue}else seen.add(k);out.push({id:r.id?('botid:'+r.id):('bot:'+id+':'+r.fecha+':'+(+r.abono)+':'+(r.ent?'e':'a')+':'+(i++)),monto:+r.abono,fecha:r.fecha,nota:r.abonoNota||(r.ent?'Pagado al entregar':'Abono'),src:'bot',botId:r.id||''})}return out}
+function clAbonosBot(id,desde){if(!CROWS)return[];const out=[],seen=new Set();let i=0;for(const r0 of CROWS){const r=clRowFix(r0);if(clRowId(r)!==id)continue;if(r.atipico||clEsMontoAtipico(r.abonoRaw)||clEsMontoAtipico(r.abono))continue;if(!(r.abono>0))continue;if(desde&&r.fecha<desde)continue;const k=r.fecha+'|'+Math.round(+r.abono*100)+'|'+(r.abonoTs||'');if(seen.has(k)){const dec=clAbonoDecGet(r.id);if(!(dec&&dec.v==='otro'))continue}else seen.add(k);out.push({id:r.id?('botid:'+r.id):('bot:'+id+':'+r.fecha+':'+(+r.abono)+':'+(r.ent?'e':'a')+':'+(i++)),monto:+r.abono,fecha:r.fecha,nota:r.abonoNota||(r.ent?'Pagado al entregar':'Abono'),src:'bot',botId:r.id||''})}return out}
 function clPagosAll(id,desde){const app=clPagosApp(id,desde),bot=clAbonosBot(id,desde),used=new Set(),out=app.map(p=>Object.assign({},p));for(const p of out){const j=bot.findIndex((b,i)=>!used.has(i)&&b.fecha===p.fecha&&Math.abs(b.monto-p.monto)<0.009);if(j>=0)used.add(j)}bot.forEach((b,i)=>{if(!used.has(i))out.push(b)});return out.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.ts||0)-(b.ts||0))}
 function clPagoAdd(id,p){const M=clPagosMigrar();(M[id]=M[id]||[]).push({id:p.id||clPagoId(),monto:+p.monto,fecha:p.fecha,nota:p.nota||'',src:'app',ts:Date.now()});ss('cl_pagos',M)}
 function clPagoDel(id,pid){const M=clPagosMigrar();const x=(M[id]||[]).find(p=>p.id===pid);if(x){x.d=1;x.ts=Date.now();ss('cl_pagos',M)}}
@@ -552,7 +554,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v42</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v43</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
