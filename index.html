@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v46</title>
+<title>Cortes semanales v47</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v46</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v47</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -228,7 +228,7 @@ function textoCorte(c,cli){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GES
  L.push('');L.push('Subtotal: '+$m(c.subtotal));
  if(c.abonos.length){for(const a of c.abonos){if(cli&&clAbonoInterno(a))continue;const quien=c.cliente?'':' ('+a.cliente+')';
   if(clAbonoEsAnticipo(c,a)&&+a.monto>0){L.push('Anticipo ('+fd(a.fecha)+')'+quien+': -'+$m(a.monto));continue}
-  L.push((a.revisar?'⚠ ':'')+(a.ent?'Pagado al entregar ':'Abono ')+fd(a.fecha)+quien+(a.revisar&&!a.monto?': '+(a.nota||'revisar monto'):': -'+$m(a.monto)))}}
+  L.push((a.revisar?'⚠ ':'')+(a.nota==='Recarga prepago'?'Recarga ':a.ent?'Pagado al entregar ':'Abono ')+fd(a.fecha)+quien+(a.revisar&&!a.monto?': '+(a.nota||'revisar monto'):': -'+$m(a.monto)))}}
  if(c.saldoAnt&&Math.abs(c.saldoAnt)>0.009)L.push('Saldo anterior '+(c.saldoAnt>0?'pendiente':'a favor')+': '+(c.saldoAnt>0?'':'-')+$m(Math.abs(c.saldoAnt)));
  if(c.total<-0.009){L.push('*TOTAL A PAGAR: $0.00*');L.push('Saldo a favor: '+$m(-c.total))}
  else{L.push('*TOTAL A PAGAR: '+$m(c.total)+'*');L.push(c.total>0.009?'Pendiente: '+$m(c.total):'Pendiente: $0.00')}
@@ -407,6 +407,7 @@ function clClearAbonoDec(bid){if(!bid)return;const D=ls('cl_abono_dec',{});delet
 function clSetAbonoDec(bid,v){if(!bid)return;const D=ls('cl_abono_dec',{});D[bid]={v:v,t:Date.now()};ss('cl_abono_dec',D);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
 function clRowFix(r){if(!r||!r.revisarAbono||!r.id)return r;const d=clAbonoDecGet(r.id);if(!d)return r;if(d.v==='monto'&&+d.m>0)return Object.assign({},r,{abono:+d.m,abonoRaw:+d.m,ent:false,revisarAbono:false,abonoNota:'Abono capturado a mano $'+(+d.m),revSM:{v:'monto',m:+d.m}});if(d.v==='nopago')return Object.assign({},r,{abono:0,revisarAbono:false,abonoNota:'Revisado: no fue pago',revSM:{v:'nopago'}});return r}
 function clSetAbonoMonto(bid,m){if(!bid)return;const D=ls('cl_abono_dec',{});D[bid]=m==='nopago'?{v:'nopago',t:Date.now()}:{v:'monto',m:+m,t:Date.now()};ss('cl_abono_dec',D);if(CROWS){CORTES=clBuild();ss('ultimos',CORTES)}render()}
+function clPrepFix(rows){const isP=r=>/^P\d+$/.test(String(r.id||''));const K=new Set();for(const r of rows)if(r.src==='bot'&&isP(r))K.add(clRowId(r));if(!K.size)return rows;return rows.map(r=>{if(r.src!=='bot'||!K.has(clRowId(r)))return r;if(isP(r)){const m=String((r.abonoCtx&&r.abonoCtx.nota)||'').match(/recibido\s*(\d{1,2}\/\d{1,2}\/\d{4})?\s*(\d{1,2}:\d{2})?/i);return Object.assign({},r,{abonoTs:'P#'+r.id,abonoNota:'Recarga prepago',abonoCtx:Object.assign({},r.abonoCtx||{},{tramite:'Recarga prepago',ts:m?((m[1]||'')+' '+(m[2]||'')).trim():''})})}if(r.items&&r.items.length&&+r.abono>0)return Object.assign({},r,{abono:0,ent:false,prepCubierto:true});return r})}
 function clAbonosBot(id,desde){if(!CROWS)return[];const out=[],seen=new Set();let i=0;for(const r0 of CROWS){const r=clRowFix(r0);if(clRowId(r)!==id)continue;if(r.atipico||clEsMontoAtipico(r.abonoRaw)||clEsMontoAtipico(r.abono))continue;if(!(r.abono>0))continue;if(desde&&r.fecha<desde)continue;const k=r.fecha+'|'+Math.round(+r.abono*100)+'|'+(r.abonoTs||'');if(seen.has(k)){const dec=clAbonoDecGet(r.id);if(!(dec&&dec.v==='otro'))continue}else seen.add(k);out.push({id:r.id?('botid:'+r.id):('bot:'+id+':'+r.fecha+':'+(+r.abono)+':'+(r.ent?'e':'a')+':'+(i++)),monto:+r.abono,fecha:r.fecha,nota:r.abonoNota||(r.ent?'Pagado al entregar':'Abono'),src:'bot',botId:r.id||''})}return out}
 function clPagosAll(id,desde){const app=clPagosApp(id,desde),bot=clAbonosBot(id,desde),used=new Set(),out=app.map(p=>Object.assign({},p));for(const p of out){const j=bot.findIndex((b,i)=>!used.has(i)&&b.fecha===p.fecha&&Math.abs(b.monto-p.monto)<0.009);if(j>=0)used.add(j)}bot.forEach((b,i)=>{if(!used.has(i))out.push(b)});return out.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.ts||0)-(b.ts||0))}
 function clPagoAdd(id,p){const M=clPagosMigrar();(M[id]=M[id]||[]).push({id:p.id||clPagoId(),monto:+p.monto,fecha:p.fecha,nota:p.nota||'',src:'app',ts:Date.now()});ss('cl_pagos',M)}
@@ -467,7 +468,7 @@ document.getElementById('arrastre').value=ls('cl_arrastre',ARR_DEF);document.get
 ['desde','hasta'].forEach(i=>document.getElementById(i).addEventListener('change',()=>{const[d,h]=clGen();if(CROWS&&d&&h&&d<=h){ss('desde',d);ss('hasta',h);CORTES=clBuild();ss('ultimos',CORTES);render()}}));
 async function fetchCSV(){let err;for(const u of URLS){try{const r=await fetch(u+'&_='+Date.now());if(r.ok){const t=await r.text();if(/FECHA/i.test(t.slice(0,300)))return t}}catch(e){err=e}}throw err||new Error('Sin respuesta')}
 document.getElementById('cargar').onclick=async()=>{const d=desde.value,h=hasta.value;if(!d||!h)return msg('Elige fechas');ss('desde',d);ss('hasta',h);msg('Cargando…');
- try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CROWS=rows;CORTES=clBuild();ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
+ try{let rows=parseRows(await fetchCSV()),nvE='';try{const V=await nvLoad(true);rows=nvMerge(rows,nvCliRows(V.N))}catch(e){nvE=' ⚠ Hoja bot: '+e.message}CROWS=clPrepFix(rows);CORTES=clBuild();ss('ultimos',CORTES);render();msg(CORTES.length+' cortes generados ('+new Date().toLocaleTimeString('es-MX')+') · '+nvFuente(d,h)+nvE)}catch(e){msg('Error al cargar: '+e.message)}};
 const envKey=c=>'enviado:'+c.id+':'+c.desde+':'+c.hasta;
 const pagoKey=c=>'pago:'+c.id+':'+c.desde+':'+c.hasta;
 function telPedir(c,el){let t=telGet(c.id);if(t)return t;const v=(prompt('Teléfono WhatsApp de '+(c.cliente||c.gestor)+' (con 52, ej. 52XXXXXXXXXX):','52')||'').replace(/\D/g,'');if(v.length<10){const x=el.querySelector('.cfg');x.hidden=false;x.scrollIntoView({behavior:'smooth',block:'center'});alert('Falta el teléfono de '+(c.cliente||c.gestor)+'. Captúralo en ⚙️ y vuelve a intentar.');return null}telSet(c.id,v);return v}
@@ -556,7 +557,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v46</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v47</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
