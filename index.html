@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortes semanales v50</title>
+<title>Cortes semanales v51</title>
 <style>
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f5f8;color:#1d2430}
 header{background:#0f766e;color:#fff;padding:14px 16px}header h1{margin:0;font-size:1.25rem}
@@ -22,7 +22,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}td,th{padding:6px;bor
 .tabs{display:flex;gap:6px;max-width:1100px;margin:10px auto 0;padding:0 12px}.tabs button{flex:1;padding:12px;font-size:1rem;background:#e2e8f0;color:#1d2430;border-radius:10px}.tabs button.on{background:#0f766e;color:#fff;font-weight:700}[hidden]{display:none!important}
 .gear{background:none;color:#475569;padding:2px 6px;font-size:1.1rem}
 </style></head><body>
-<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v50</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
+<header><h1>📋 Cortes semanales <small style="font-size:.7rem;opacity:.8">v51</small></h1><label style="font-size:13px">Abrir con: <select id="waApp"><option value="n">WhatsApp normal</option><option value="b">Business directo</option><option value="s">Menú compartir</option></select></label></header>
 <nav class="tabs"><button id="tabC" class="on">Clientes</button><button id="tabP">Proveedores</button><button id="tabX">Comparación</button></nav>
 <main>
 <div id="secC">
@@ -235,7 +235,11 @@ function textoCorte(c,cli){const L=[];L.push('*CORTE '+(c.cliente?c.cliente:'GES
  if(c.fase==='pre'&&c.promoSaldoHoy!=null&&c.promoSaldoHoy>=0)L.push('Saldo a favor en promo: '+$m(c.promoSaldoHoy));
  if(c.fase==='promo'&&c.promoPrePendiente>0.009)L.push('Tienes un corte pendiente aparte de '+$m(c.promoPrePendiente)+' de antes de la promo.');
  return L.join('\n')}
-function textosCorte(c){c.texto=textoCorte(c,false);c.textoWa=textoCorte(c,true);return c.texto}
+const AVISO_DEPOSITO_HASTA='2026-12-31';
+const TXT_AVISO_DEPOSITO='⚠️ *AVISO: CAMBIARON LOS DATOS DE DEPÓSITO*\nA partir de ahora, por favor realiza tus depósitos únicamente a esta cuenta:\n🏦 Banco: BBVA\n💳 Tarjeta: 4152 3143 1065 4796\n🔢 CLABE: 012470015681544682\n👤 Titular: Aaron Canek Moreno Navarrete';
+function avisoDepositoActivo(){const d=new Date();const hoy=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return hoy<=AVISO_DEPOSITO_HASTA}
+function conAvisoDeposito(t){return avisoDepositoActivo()?TXT_AVISO_DEPOSITO+'\n\n'+t:t}
+function textosCorte(c){c.texto=conAvisoDeposito(textoCorte(c,false));c.textoWa=conAvisoDeposito(textoCorte(c,true));return c.texto}
 if(typeof module!='undefined')module.exports={parseRows,buildCortes};
 /*CORE-END*/
 /*NV-START*/
@@ -557,7 +561,7 @@ document.getElementById('expT').onclick=()=>{CORTES.forEach(c=>OPEN.add(clKey(c)
 try{clPagosMigrar()}catch(e){}
  try{const A=ls('cl_ajuste',{});let ch=false;for(const id in A){if(clAjusteEsTypo(A[id]&&A[id].monto)){A[id].monto=0;ch=true}}if(ch)ss('cl_ajuste',A)}catch(e){}
 CORTES=ls('ultimos',[]);render();document.getElementById('cargar').click();}
-</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v50</footer>
+</script><footer style="text-align:center;font-size:12px;opacity:.6;padding:8px">v51</footer>
 <details class="panel" id="telcfg" style="margin:8px"><summary style="cursor:pointer;font-weight:600">📇 Teléfonos guardados</summary><div id="telbox" style="font-size:.85rem"></div></details>
 <script>(function(){const N=k=>String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*\|\s*/g,'|').replace(/\s+/g,' ').trim();const g=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}};const E=s=>String(s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 function draw(){const B=document.getElementById('telbox');const T=g('telefonos'),P=g('pv_telefonos');const C={};for(const k in T){const n=N(k);if(!C[n]&&/\d{10}/.test(String(T[k]).replace(/\D/g,"")))C[n]=T[k]}
